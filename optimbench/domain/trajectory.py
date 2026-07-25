@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..domain import ActionType
+from .enums import ActionType
 
 
 @dataclass(frozen=True)

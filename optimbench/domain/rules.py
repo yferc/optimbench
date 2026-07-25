@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .enums import ViolationKind
-from .geometry import arrival_times
-from .models import DispatchState, Vehicle
+from .models import DEPOT, DispatchState, Vehicle
 
 
 @dataclass(frozen=True)
@@ -25,6 +24,22 @@ def is_feasible(state: DispatchState) -> bool:
     return not violations(state)
 
 
+def schedule(state: DispatchState, vehicle: Vehicle) -> tuple[dict[int, float], float]:
+    """Arrival time at each stop and the return-to-depot time, with travel,
+    wait-until-window_open and service time — the executable timeline."""
+    service_at, open_at = _stop_timing(state, vehicle)
+    arrival: dict[int, float] = {}
+    clock = 0.0
+    previous = vehicle.route[0]
+    for node in vehicle.route:
+        clock += state.network.true_time[previous, node]
+        if node not in arrival:
+            arrival[node] = clock
+        clock = max(clock, open_at.get(node, clock)) + service_at.get(node, 0.0)
+        previous = node
+    return arrival, clock
+
+
 def _unassigned_live_orders(state: DispatchState) -> list[Violation]:
     assigned = state.assigned_ids()
     return [
@@ -39,23 +54,44 @@ def _vehicle_violations(state: DispatchState, vehicle: Vehicle) -> list[Violatio
         return []
     if not vehicle.in_service:
         return [Violation(ViolationKind.OUT_OF_SERVICE_VEHICLE, vehicle.id)]
+    if _route_out_of_bounds(state, vehicle):
+        return [Violation(ViolationKind.ROUTE_MISSING_STOP, vehicle.id)]
 
     found: list[Violation] = []
     if vehicle.load(state.orders) > vehicle.capacity:
         found.append(Violation(ViolationKind.CAPACITY_EXCEEDED, vehicle.id))
+    if not _depot_anchored(vehicle):
+        return found + [Violation(ViolationKind.ROUTE_NOT_DEPOT_ANCHORED, vehicle.id)]
 
     route_nodes = set(vehicle.route)
-    arrival_at = _arrival_by_node(state, vehicle)
+    if any(state.orders[o].node not in route_nodes for o in vehicle.assigned):
+        found.append(Violation(ViolationKind.ROUTE_MISSING_STOP, vehicle.id))
+        return found
+
+    arrival, return_time = schedule(state, vehicle)
     for order_id in vehicle.assigned:
         order = state.orders[order_id]
-        if order.node not in route_nodes:
-            found.append(Violation(ViolationKind.ROUTE_MISSING_STOP, vehicle.id))
-            continue
-        if arrival_at.get(order.node, float("inf")) > order.window_close:
+        if arrival[order.node] > order.window_close:
             found.append(Violation(ViolationKind.TIME_WINDOW_MISSED, order_id))
+    if return_time > vehicle.shift_end:
+        found.append(Violation(ViolationKind.SHIFT_END_EXCEEDED, vehicle.id))
     return found
 
 
-def _arrival_by_node(state: DispatchState, vehicle: Vehicle) -> dict[int, float]:
-    times = arrival_times(state.network, vehicle.route)
-    return {node: float(t) for node, t in zip(vehicle.route, times)}
+def _depot_anchored(vehicle: Vehicle) -> bool:
+    return len(vehicle.route) >= 2 and vehicle.route[0] == DEPOT and vehicle.route[-1] == DEPOT
+
+
+def _route_out_of_bounds(state: DispatchState, vehicle: Vehicle) -> bool:
+    size = state.network.size
+    return any(node < 0 or node >= size for node in vehicle.route)
+
+
+def _stop_timing(state: DispatchState, vehicle: Vehicle):
+    service_at: dict[int, float] = {}
+    open_at: dict[int, float] = {}
+    for order_id in vehicle.assigned:
+        order = state.orders[order_id]
+        service_at[order.node] = service_at.get(order.node, 0.0) + order.service_time
+        open_at[order.node] = max(open_at.get(order.node, 0.0), order.window_open)
+    return service_at, open_at

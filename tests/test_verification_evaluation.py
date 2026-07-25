@@ -23,8 +23,12 @@ def _solve(seed: int, difficulty: Difficulty) -> DispatchEnvironment:
     return env
 
 
+def _verify(env: DispatchEnvironment):
+    return VERIFIER.verify(env.state, env.trajectory, env.scenario.reference_time)
+
+
 def test_greedy_solution_verifies_feasible_easy():
-    result = VERIFIER.verify(_solve(3, Difficulty.EASY))
+    result = _verify(_solve(3, Difficulty.EASY))
     assert result.feasible and result.objective and result.objective > 0
 
 
@@ -32,7 +36,7 @@ def test_never_committing_flags_integrity():
     env = DispatchEnvironment()
     env.reset(GEN.generate(0, Difficulty.EASY))
     env.step(ActionType.LIST_ORDERS, {"filter": "live"})
-    result = VERIFIER.verify(env)
+    result = _verify(env)
     assert IntegrityFlag.NEVER_COMMITTED in result.integrity_flags
     assert not result.integrity_ok
 

@@ -6,6 +6,8 @@ import numpy as np
 
 from .enums import OrderStatus, Priority
 
+DEPOT = 0
+
 
 @dataclass(frozen=True)
 class Order:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pygame
 
-from ..domain import DispatchState, OrderStatus, Priority, route_time
+from ..domain import DEPOT, DispatchState, OrderStatus, Priority, fleet_cost, is_feasible
 
 _BG = (13, 19, 32)
 _ARENA = (26, 34, 52)
@@ -64,13 +64,11 @@ class EpisodeRenderer:
             pygame.draw.circle(self._surface, color, point, radius)
 
     def _draw_depot(self, state: DispatchState) -> None:
-        x, y = self._to_screen(0, state.network.coordinates)
+        x, y = self._to_screen(DEPOT, state.network.coordinates)
         pygame.draw.rect(self._surface, _DEPOT, (x - 9, y - 9, 18, 18), border_radius=4)
 
     def _draw_hud(self, state: DispatchState, waves_total: int) -> None:
-        from ..domain import is_feasible
-
-        cost = sum(route_time(state.network, v.route) for v in state.vehicles.values() if v.in_service)
+        cost = fleet_cost(state)
         assigned = len(state.assigned_ids())
         live = len(state.live_orders())
         feasible = is_feasible(state)

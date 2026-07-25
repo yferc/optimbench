@@ -36,14 +36,15 @@ class DisruptionKind(str, Enum):
 class ViolationKind(str, Enum):
     CAPACITY_EXCEEDED = "capacity_exceeded"
     TIME_WINDOW_MISSED = "time_window_missed"
+    SHIFT_END_EXCEEDED = "shift_end_exceeded"
     UNASSIGNED_LIVE_ORDER = "unassigned_live_order"
     ROUTE_MISSING_STOP = "route_missing_stop"
+    ROUTE_NOT_DEPOT_ANCHORED = "route_not_depot_anchored"
     OUT_OF_SERVICE_VEHICLE = "out_of_service_vehicle"
 
 
 class IntegrityFlag(str, Enum):
     INVALID_ACTION_SPAM = "invalid_action_spam"
-    ACCEPTED_INFEASIBLE_RUSH = "accepted_infeasible_rush"
     NEVER_COMMITTED = "never_committed"
 
 

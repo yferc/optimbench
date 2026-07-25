@@ -4,20 +4,21 @@ from typing import Any
 
 
 from ..domain import (
+    DEPOT,
     ActionType,
-    DispatchState,
+    Decision,
+    Disruption,
     DisruptionKind,
+    DispatchState,
     Order,
     OrderStatus,
+    Scenario,
+    Trajectory,
     Vehicle,
     is_feasible,
     violations,
 )
-from ..generation import Disruption, Scenario
 from .tools import TOOLSET, ToolSpec
-from .trajectory import Decision, Trajectory
-
-DEPOT = 0
 
 
 class DispatchEnvironment:
@@ -118,8 +119,10 @@ class DispatchEnvironment:
         return self._vehicle_view(vehicle, self._state), True, ""
 
     def _query_traffic(self, args):
-        a, b = int(args["a"]), int(args["b"])
-        return {"true_time": float(self._state.network.true_time[a, b])}, True, ""
+        node_a, node_b = self._as_node(args.get("a")), self._as_node(args.get("b"))
+        if node_a is None or node_b is None:
+            return {}, False, "node out of range"
+        return {"true_time": float(self._state.network.true_time[node_a, node_b])}, True, ""
 
     def _check_feasibility(self, args):
         found = violations(self._state)
@@ -149,7 +152,10 @@ class DispatchEnvironment:
         stops = args.get("stops")
         if vehicle is None or not isinstance(stops, list):
             return {}, False, "unknown vehicle or bad stops"
-        vehicle.route = [int(s) for s in stops]
+        parsed = [self._as_node(stop) for stop in stops]
+        if any(node is None for node in parsed):
+            return {}, False, "stop out of range or non-integer"
+        vehicle.route = parsed
         return {}, True, ""
 
     def _reroute(self, args):
@@ -172,6 +178,13 @@ class DispatchEnvironment:
         return {"reason": args.get("reason", "")}, True, "refused"
 
     # -- mutation helpers ---------------------------------------------------
+    def _as_node(self, value) -> int | None:
+        try:
+            node = int(value)
+        except (TypeError, ValueError):
+            return None
+        return node if 0 <= node < self._state.network.size else None
+
     def _detach(self, order_id: str | None) -> bool:
         removed = False
         for vehicle in self._state.vehicles.values():

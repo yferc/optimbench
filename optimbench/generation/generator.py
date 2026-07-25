@@ -3,24 +3,25 @@ from __future__ import annotations
 import numpy as np
 
 from ..domain import (
+    DEPOT,
     Difficulty,
-    DispatchState,
+    Disruption,
     DisruptionKind,
+    DispatchState,
     Order,
     OrderStatus,
     Priority,
     ReferenceKind,
     RoadNetwork,
+    Scenario,
     Vehicle,
     euclidean_time_matrix,
     total_fleet_time,
 )
-from .scenario import DIFFICULTY, DifficultySpec, Disruption, Scenario
+from .scenario import DIFFICULTY, DifficultySpec
 
-DEPOT = 0
-_HORIZON_MARGIN = 1.8
-_HORIZON_BUFFER = 30.0
-_SHIFT_HORIZON = 10_000
+_RUSH_RESERVE = 3
+_HORIZON_BUFFER = 60.0
 
 
 class DispatchScenarioGenerator:
@@ -28,10 +29,11 @@ class DispatchScenarioGenerator:
         rng = np.random.default_rng(seed)
         spec = DIFFICULTY[difficulty]
         network = self._network(rng, spec)
-        vehicles, orders, routes, horizon = self._feasible_construction(rng, spec, network)
+        horizon = self._horizon(network, spec)
+        vehicles, orders, routes = self._feasible_construction(rng, spec, network, horizon)
         self._add_distractors(rng, spec, vehicles, orders, horizon)
         disruptions = self._disruptions(rng, spec, vehicles, orders, horizon)
-        state = DispatchState(network, orders, self._cleared(vehicles))
+        state = DispatchState(network, orders, self._cleared(vehicles, horizon))
         return Scenario(
             seed, difficulty, state, disruptions,
             total_fleet_time(network, routes), ReferenceKind.HEURISTIC,
@@ -47,48 +49,54 @@ class DispatchScenarioGenerator:
         np.fill_diagonal(observed_time, 0.0)
         return RoadNetwork(coordinates, true_time, observed_time)
 
+    def _horizon(self, network: RoadNetwork, spec: DifficultySpec) -> float:
+        out_and_back = 2.0 * float(network.true_time[DEPOT, 1:].sum())
+        max_service = 3.0 * spec.orders
+        return out_and_back + max_service + _HORIZON_BUFFER
+
+    def _demand_budget(self, spec: DifficultySpec) -> float:
+        usable = (spec.vehicles - 1) * spec.capacity - _RUSH_RESERVE
+        return usable / spec.slack_ratio
+
     def _feasible_construction(
-        self, rng: np.random.Generator, spec: DifficultySpec, network: RoadNetwork
-    ) -> tuple[list[Vehicle], dict[str, Order], list[list[int]], float]:
+        self, rng: np.random.Generator, spec: DifficultySpec,
+        network: RoadNetwork, horizon: float,
+    ) -> tuple[list[Vehicle], dict[str, Order], list[list[int]]]:
         nodes = list(range(1, spec.nodes))
         rng.shuffle(nodes)
         quota = self._quota(spec.orders, spec.vehicles)
-        placements: list[tuple[int, int, int, int, float]] = []
+        budget = self._demand_budget(spec)
+
         vehicles: list[Vehicle] = []
+        orders: dict[str, Order] = {}
         routes: list[list[int]] = []
         cursor = 0
+        total_demand = 0
 
         for index in range(spec.vehicles):
-            vehicle = Vehicle(f"veh_{index}", spec.capacity, DEPOT, _SHIFT_HORIZON)
+            vehicle = Vehicle(f"veh_{index}", spec.capacity, DEPOT, int(horizon))
             route = [DEPOT]
-            clock = 0.0
             load = 0
             for _ in range(quota[index]):
                 if cursor >= len(nodes):
                     break
+                demand = int(rng.integers(1, 4))
+                if load + demand > vehicle.capacity or total_demand + demand > budget:
+                    break
                 node = nodes[cursor]
                 cursor += 1
-                demand = int(rng.integers(1, 4))
-                if load + demand > vehicle.capacity:
-                    break
-                arrival = clock + network.true_time[route[-1], node]
-                service = int(rng.integers(1, 4))
-                placements.append((index, node, demand, service, arrival))
+                order = Order(f"ord_{len(orders)}", node, demand, 0, int(horizon),
+                              int(rng.integers(1, 4)))
+                orders[order.id] = order
+                vehicle.assigned.append(order.id)
                 route.append(node)
                 load += demand
-                clock = arrival + service
+                total_demand += demand
             route.append(DEPOT)
             vehicle.route = route
             vehicles.append(vehicle)
             routes.append(route)
-
-        horizon = max((p[4] for p in placements), default=0.0) * _HORIZON_MARGIN + _HORIZON_BUFFER
-        orders: dict[str, Order] = {}
-        for i, (vehicle_index, node, demand, service, _arrival) in enumerate(placements):
-            order = Order(f"ord_{i}", node, demand, 0, int(horizon), service)
-            orders[order.id] = order
-            vehicles[vehicle_index].assigned.append(order.id)
-        return vehicles, orders, routes, horizon
+        return vehicles, orders, routes
 
     def _add_distractors(
         self, rng: np.random.Generator, spec: DifficultySpec,
@@ -101,7 +109,7 @@ class DispatchScenarioGenerator:
                 0, int(horizon), 1, status=OrderStatus.CANCELLED)
         for index in range(spec.out_of_service):
             vehicles.append(
-                Vehicle(f"veh_offline_{index}", spec.capacity, DEPOT, _SHIFT_HORIZON, in_service=False))
+                Vehicle(f"veh_offline_{index}", spec.capacity, DEPOT, int(horizon), in_service=False))
 
     def _disruptions(
         self, rng: np.random.Generator, spec: DifficultySpec,
@@ -128,8 +136,8 @@ class DispatchScenarioGenerator:
         return [base + (1 if i < extra else 0) for i in range(vehicles)]
 
     @staticmethod
-    def _cleared(vehicles: list[Vehicle]) -> dict[str, Vehicle]:
+    def _cleared(vehicles: list[Vehicle], horizon: float) -> dict[str, Vehicle]:
         return {
-            v.id: Vehicle(v.id, v.capacity, v.depot, v.shift_end, v.in_service)
+            v.id: Vehicle(v.id, v.capacity, v.depot, int(horizon), v.in_service)
             for v in vehicles
         }

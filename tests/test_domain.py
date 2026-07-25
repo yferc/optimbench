@@ -67,3 +67,24 @@ def test_time_window_violation_detected(network):
     veh = Vehicle("v1", 10, 0, 10_000, assigned=["o1"], route=[0, 1, 0])
     kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
     assert ViolationKind.TIME_WINDOW_MISSED in kinds
+
+
+def test_depot_anchoring_required(network):
+    orders = {"o1": _order("o1", 1)}
+    veh = Vehicle("v1", 10, 0, 10_000, assigned=["o1"], route=[1, 2])
+    kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
+    assert ViolationKind.ROUTE_NOT_DEPOT_ANCHORED in kinds
+
+
+def test_out_of_range_route_flagged_without_crashing(network):
+    orders = {"o1": _order("o1", 1)}
+    veh = Vehicle("v1", 10, 0, 10_000, assigned=["o1"], route=[0, 999, 0])
+    kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
+    assert ViolationKind.ROUTE_MISSING_STOP in kinds
+
+
+def test_shift_end_exceeded_detected(network):
+    orders = {"o1": _order("o1", 1)}
+    veh = Vehicle("v1", 10, 0, 1, assigned=["o1"], route=[0, 1, 0])
+    kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
+    assert ViolationKind.SHIFT_END_EXCEEDED in kinds

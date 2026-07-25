@@ -64,6 +64,19 @@ def test_breakdown_unassigns_vehicle_orders():
     assert all(not v.assigned for v in offline)
 
 
+def test_set_route_rejects_out_of_range_stops():
+    env = _fresh()
+    vehicle = env.observation()["vehicles"][0]["id"]
+    out = env.step(ActionType.SET_ROUTE, {"vehicle_id": vehicle, "stops": [0, 999, 0]})
+    assert out["accepted"] is False
+
+
+def test_query_traffic_rejects_bad_node():
+    env = _fresh()
+    assert env.step(ActionType.QUERY_TRAFFIC, {"a": 0, "b": 999})["accepted"] is False
+    assert env.step(ActionType.QUERY_TRAFFIC, {"a": 0})["accepted"] is False
+
+
 def test_trajectory_logs_every_decision():
     env = _fresh()
     env.step(ActionType.LIST_ORDERS, {"filter": "live"})

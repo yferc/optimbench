@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..domain import Difficulty, DispatchState, DisruptionKind, Order, ReferenceKind
+from ..domain import Difficulty
 
 
 @dataclass(frozen=True)
@@ -23,21 +23,3 @@ DIFFICULTY: dict[Difficulty, DifficultySpec] = {
     Difficulty.MEDIUM: DifficultySpec(20, 4, 14, 12, 1.25, 2, 2, 1, 0.15),
     Difficulty.HARD: DifficultySpec(30, 5, 22, 12, 1.12, 3, 3, 1, 0.20),
 }
-
-
-@dataclass(frozen=True)
-class Disruption:
-    kind: DisruptionKind
-    vehicle_id: str | None = None
-    order: Order | None = None
-    order_id: str | None = None
-
-
-@dataclass
-class Scenario:
-    seed: int
-    difficulty: Difficulty
-    state: DispatchState
-    disruptions: list[Disruption]
-    reference_time: float
-    reference_kind: ReferenceKind

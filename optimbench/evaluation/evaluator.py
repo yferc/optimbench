@@ -81,4 +81,5 @@ class Evaluator:
             if action is ActionType.DISPATCH:
                 commit_feasibility.append(is_feasible(env.state))
             env.step(action, args)
-        return self._verifier.verify(env), commit_feasibility
+        result = self._verifier.verify(env.state, env.trajectory, env.scenario.reference_time)
+        return result, commit_feasibility
