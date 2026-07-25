@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "optimbench"
+version = "0.0.1"
+description = "Infrastructure for creating and evaluating reliable optimization & planning agents in constrained environments."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Yahia Ferchichi" }]
+keywords = ["evaluation", "reinforcement-learning", "optimization", "agents", "verifier", "rlvr", "benchmark"]
+dependencies = ["numpy>=1.23", "pydantic>=2.0"]
+
+[project.optional-dependencies]
+solver = ["ortools>=9.7"]
+dev = ["pytest>=7.0", "ruff>=0.1"]
+
+[tool.setuptools.packages.find]
+include = ["optimbench*"]
+
+[tool.ruff]
+line-length = 100
