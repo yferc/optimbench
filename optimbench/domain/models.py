@@ -20,7 +20,7 @@ class Order:
     priority: Priority = Priority.NORMAL
     status: OrderStatus = OrderStatus.LIVE
 
-    def with_status(self, status: OrderStatus) -> "Order":
+    def with_status(self, status: OrderStatus) -> Order:
         return replace(self, status=status)
 
 

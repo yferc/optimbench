@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-
 from ..domain import (
     DEPOT,
     ActionType,
     Decision,
+    DispatchState,
     Disruption,
     DisruptionKind,
-    DispatchState,
     Order,
     OrderStatus,
     Scenario,

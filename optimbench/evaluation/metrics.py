@@ -47,5 +47,5 @@ class MetricSummary:
     ci: tuple[float, float]
 
     @classmethod
-    def of(cls, values: list[float]) -> "MetricSummary":
+    def of(cls, values: list[float]) -> MetricSummary:
         return cls(float(np.mean(values)) if values else 0.0, iqm(values), bootstrap_ci(values))

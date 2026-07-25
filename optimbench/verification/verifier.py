@@ -26,7 +26,6 @@ class DispatchVerifier:
         flags: list[IntegrityFlag] = []
         if trajectory.commits == 0:
             flags.append(IntegrityFlag.NEVER_COMMITTED)
-        if trajectory.decisions:
-            if trajectory.rejected / len(trajectory.decisions) > _MAX_REJECTED_FRACTION:
-                flags.append(IntegrityFlag.INVALID_ACTION_SPAM)
+        if trajectory.decisions and trajectory.rejected / len(trajectory.decisions) > _MAX_REJECTED_FRACTION:
+            flags.append(IntegrityFlag.INVALID_ACTION_SPAM)
         return flags

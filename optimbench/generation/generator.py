@@ -5,9 +5,9 @@ import numpy as np
 from ..domain import (
     DEPOT,
     Difficulty,
+    DispatchState,
     Disruption,
     DisruptionKind,
-    DispatchState,
     Order,
     OrderStatus,
     Priority,
