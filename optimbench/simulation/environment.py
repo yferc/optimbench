@@ -79,9 +79,10 @@ class DispatchEnvironment:
             "final_wave": self._wave_cursor >= len(self._scenario.disruptions),
             "awaiting_commit": True,
             "feasible": is_feasible(state),
+            "depot": [float(c) for c in state.network.coordinates[DEPOT]],
             "vehicles": [self._vehicle_view(v, state) for v in state.vehicles.values()],
             "unassigned_orders": [
-                self._order_view(o) for o in state.live_orders() if o.id not in assigned
+                self._order_view(o, state) for o in state.live_orders() if o.id not in assigned
             ],
         }
 
@@ -115,7 +116,7 @@ class DispatchEnvironment:
             "unassigned": [o for o in pool if o.status is OrderStatus.LIVE and o.id not in assigned],
             "rush": [o for o in pool if o.priority.value == "rush"],
         }.get(which, [])
-        return [self._order_view(o) for o in selected], True, which
+        return [self._order_view(o, self._state) for o in selected], True, which
 
     def _get_vehicle(self, args):
         vehicle = self._vehicle(args.get("vehicle_id"))
@@ -245,9 +246,10 @@ class DispatchEnvironment:
 
     # -- views --------------------------------------------------------------
     @staticmethod
-    def _order_view(order: Order) -> dict[str, Any]:
+    def _order_view(order: Order, state: DispatchState) -> dict[str, Any]:
         return {
             "id": order.id, "node": order.node, "demand": order.demand,
+            "coord": [float(c) for c in state.network.coordinates[order.node]],
             "window_open": order.window_open, "window_close": order.window_close,
             "priority": order.priority.value,
         }
@@ -258,4 +260,17 @@ class DispatchEnvironment:
             "id": vehicle.id, "capacity": vehicle.capacity, "in_service": vehicle.in_service,
             "load": vehicle.load(state.orders), "assigned": list(vehicle.assigned),
             "route": list(vehicle.route),
+            "centroid": _load_centroid(vehicle, state),
         }
+
+
+def _load_centroid(vehicle: Vehicle, state: DispatchState) -> list[float]:
+    points = [
+        state.network.coordinates[state.orders[o].node]
+        for o in vehicle.assigned
+        if o in state.orders
+    ]
+    origin = state.network.coordinates[DEPOT] if not points else None
+    if origin is not None:
+        return [float(origin[0]), float(origin[1])]
+    return [sum(float(p[i]) for p in points) / len(points) for i in (0, 1)]
