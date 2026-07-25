@@ -204,13 +204,22 @@ class DispatchEnvironment:
                 removed = True
         return removed
 
+    def _busiest_vehicle(self) -> Vehicle | None:
+        candidates = [
+            v for v in self._state.vehicles.values() if v.in_service and v.assigned
+        ]
+        if not candidates:
+            return None
+        return max(candidates, key=lambda v: (v.load(self._state.orders), v.id))
+
     def _apply(self, disruption: Disruption) -> None:
         if disruption.kind is DisruptionKind.BREAKDOWN:
-            vehicle = self._state.vehicles[disruption.vehicle_id]
-            vehicle.in_service = False
-            for order_id in list(vehicle.assigned):
-                self._detach(order_id)
-            vehicle.route = []
+            vehicle = self._busiest_vehicle()
+            if vehicle is not None:
+                vehicle.in_service = False
+                for order_id in list(vehicle.assigned):
+                    self._detach(order_id)
+                vehicle.route = []
         elif disruption.kind is DisruptionKind.RUSH_ORDER:
             self._state.orders[disruption.order.id] = disruption.order
         elif disruption.kind is DisruptionKind.CANCELLATION:

@@ -10,7 +10,7 @@ OptimBench is built around the one setting where correctness is checkable by cod
   <img src="docs/media/demo.gif" width="520" alt="A dispatch agent assigning orders, routing vehicles, and recovering from a disruption">
 </p>
 
-The first environment is dynamic vehicle dispatch. An agent is given a fleet, a set of delivery orders with capacities and time windows, and a road network. It assigns orders, sequences routes, and commits a plan — and then a disruption hits (a vehicle breaks down, an urgent order arrives). The agent has to recover to a valid, low-cost plan. Because the disruptions cascade, a single-shot answer is impossible by construction.
+The first environment is dynamic vehicle dispatch. An agent is given a fleet, a set of delivery orders with capacities and time windows, and a road network. It assigns orders, sequences routes, and commits a plan — and then a disruption hits (the busiest vehicle breaks down, an urgent order arrives, an order cancels). The agent has to recover to a valid, low-cost plan. Because the disruptions cascade and the breakdown always takes out whichever vehicle the agent leaned on most, a single-shot answer is impossible by construction.
 
 ## What it measures
 
@@ -28,11 +28,11 @@ A greedy dispatcher (best-fit assignment plus nearest-neighbour routing, re-plan
 
 | difficulty | feasibility | task | robustness | integrity |
 | --- | --- | --- | --- | --- |
-| easy | 100% | 0.844 | 1.000 | 1.000 |
-| medium | 100% | 0.700 | 1.000 | 1.000 |
-| hard | 100% | 0.622 | 1.000 | 1.000 |
+| easy | 100% | 0.834 | 1.000 | 1.000 |
+| medium | 100% | 0.747 | 1.000 | 1.000 |
+| hard | 100% | 0.658 | 1.000 | 1.000 |
 
-The greedy baseline is always feasible and resolves every disruption, but its non-geometric best-fit assignment leaves real headroom against the sweep-plus-2-opt reference — and that headroom widens with difficulty, from 0.84 on easy to 0.62 on hard, as assignment quality starts to dominate. That gap is exactly the room a smarter agent has to improve, on both assignment and recovery.
+The greedy baseline is always feasible and resolves every disruption, but its non-geometric best-fit assignment leaves real headroom against the sweep-plus-2-opt reference — and that headroom widens with difficulty, from 0.83 on easy to 0.66 on hard, as assignment quality starts to dominate. That gap is exactly the room a smarter agent has to improve, on both assignment and recovery.
 
 ## How it is built
 

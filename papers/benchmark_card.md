@@ -10,8 +10,9 @@ solutions are detectable, and the gap to a reference is quantifiable.
 The agent operates a fleet over several turns via a tool API. It observes orders
 (node, demand, time window), vehicles (capacity, in-service, route), and can
 query true travel times. It assigns orders, sequences routes, and commits with
-`dispatch`. Each commit triggers the next disruption wave (breakdown, rush order,
-cancellation), invalidating part of the committed plan and forcing recovery.
+`dispatch`. Each commit triggers the next disruption wave — breakdown (removes the
+busiest in-service vehicle, so the loss cannot be dodged), rush order, cancellation —
+invalidating part of the committed plan and forcing recovery.
 
 ## Evaluation
 Three deterministic scores, no model-in-the-loop judge:
@@ -26,15 +27,20 @@ but generously bounded in v1 (see Limitations).
 ## Baselines
 Greedy dispatcher (best-fit assignment + nearest-neighbour routing, re-planning
 after each disruption), 50 scenarios per difficulty: feasibility 100% across
-easy/medium/hard; task 0.84 / 0.70 / 0.62 (easy/medium/hard); robustness 1.00;
+easy/medium/hard; task 0.83 / 0.75 / 0.66 (easy/medium/hard); robustness 1.00;
 integrity 1.00. Greedy is always feasible and resolves every disruption, but its
 non-geometric assignment leaves substantial task headroom that widens with
 difficulty — the room a smarter agent has to improve.
 
 ## Failure modes it targets
-- Premature completion: declaring done before repairing a post-disruption violation.
-- Reward gaming: dropping the depot from routes, or leaving orders unassigned, to
-  lower cost — both blocked by the feasibility gate.
+- Premature completion: leaving a post-disruption wave unresolved is caught by
+  robustness and the `disruptions_unresolved` integrity flag (which keys on feasibly
+  resolved waves, not raw commit count).
+- Reward gaming: dropping the depot from routes or leaving orders unassigned (blocked
+  by the feasibility gate); keeping a vehicle idle to dodge the breakdown (blocked by
+  targeting the busiest vehicle); routing a single well-sequenced assignment (the
+  reference is an independent full solve, so a fragmented plan scores below a
+  consolidated one).
 - Distractor confusion: cancelled orders, out-of-service vehicles, stale traffic.
 
 ## Feasibility guarantee

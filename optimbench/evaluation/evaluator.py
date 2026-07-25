@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from ..agents import Agent
-from ..domain import ActionType, Difficulty, is_feasible
+from ..domain import Difficulty, is_feasible
 from ..generation import DispatchScenarioGenerator
 from ..simulation import DispatchEnvironment
 from ..verification import DispatchVerifier
@@ -76,16 +76,15 @@ class Evaluator:
         env = DispatchEnvironment()
         env.reset(scenario)
         agent.reset()
-        commit_feasibility: list[bool] = []
+        left_feasible: dict[int, bool] = {}
         while not env.done:
+            left_feasible[env.state.wave] = is_feasible(env.state)
             action, args = agent.act(env.observation())
-            if action is ActionType.DISPATCH:
-                commit_feasibility.append(is_feasible(env.state))
             env.step(action, args)
-        expected_commits = len(scenario.disruptions) + 1
-        resolved_commits = sum(commit_feasibility)
-        commit_feasibility += [False] * (expected_commits - len(commit_feasibility))
-        result = self._verifier.verify(
-            env.state, env.trajectory, expected_commits, resolved_commits
-        )
-        return result, commit_feasibility
+        left_feasible[env.state.wave] = is_feasible(env.state)
+
+        waves = len(scenario.disruptions) + 1
+        wave_feasibility = [left_feasible.get(wave, False) for wave in range(waves)]
+        resolved = sum(wave_feasibility)
+        result = self._verifier.verify(env.state, env.trajectory, waves, resolved)
+        return result, wave_feasibility

@@ -12,6 +12,7 @@ from optimbench.domain import (
     Vehicle,
     euclidean_time_matrix,
     fleet_cost,
+    is_feasible,
     reference_cost,
 )
 from optimbench.evaluation import Evaluator, iqm, task_score
@@ -24,23 +25,26 @@ GEN = DispatchScenarioGenerator()
 VERIFIER = DispatchVerifier()
 
 
-def _solve(seed: int, difficulty: Difficulty) -> DispatchEnvironment:
+def _run_greedy(seed: int, difficulty: Difficulty):
     env = DispatchEnvironment()
     env.reset(GEN.generate(seed, difficulty))
     agent = GreedyDispatcher()
+    left_feasible: dict[int, bool] = {}
     while not env.done:
-        action, args = agent.act(env.observation())
-        env.step(action, args)
-    return env
+        left_feasible[env.state.wave] = is_feasible(env.state)
+        env.step(*agent.act(env.observation()))
+    left_feasible[env.state.wave] = is_feasible(env.state)
+    return env, left_feasible
 
 
-def _verify(env: DispatchEnvironment):
-    expected_commits = len(env.scenario.disruptions) + 1
-    return VERIFIER.verify(env.state, env.trajectory, expected_commits)
+def _verify(env: DispatchEnvironment, left_feasible: dict[int, bool]):
+    waves = len(env.scenario.disruptions) + 1
+    resolved = sum(left_feasible.get(wave, False) for wave in range(waves))
+    return VERIFIER.verify(env.state, env.trajectory, waves, resolved)
 
 
 def test_greedy_solution_verifies_feasible_easy():
-    result = _verify(_solve(3, Difficulty.EASY))
+    result = _verify(*_run_greedy(3, Difficulty.EASY))
     assert result.feasible and result.objective and result.objective > 0
 
 
@@ -48,7 +52,7 @@ def test_never_committing_flags_integrity():
     env = DispatchEnvironment()
     env.reset(GEN.generate(0, Difficulty.EASY))
     env.step(ActionType.LIST_ORDERS, {"filter": "live"})
-    result = _verify(env)
+    result = VERIFIER.verify(env.state, env.trajectory, expected_waves=2, resolved_waves=0)
     assert IntegrityFlag.NEVER_COMMITTED in result.integrity_flags
     assert not result.integrity_ok
 
@@ -88,17 +92,18 @@ def test_greedy_resolves_all_waves_with_full_integrity():
 
 
 def test_dodging_disruptions_fails_integrity_and_robustness():
-    scenario = GEN.generate(1, Difficulty.HARD)
     env = DispatchEnvironment()
-    env.reset(scenario)
+    env.reset(GEN.generate(1, Difficulty.HARD))
     agent = GreedyDispatcher()
-    while env.state.wave == 0 and not env.done:
-        action, args = agent.act(env.observation())
-        env.step(action, args)
-    env.step(ActionType.DISPATCH, {})  # face wave 1, then stall
-    while not env.done:
+    left_feasible: dict[int, bool] = {}
+    while env.state.wave == 0 and not env.done:  # solve then commit wave 0 (advances to wave 1)
+        left_feasible[env.state.wave] = is_feasible(env.state)
+        env.step(*agent.act(env.observation()))
+    while not env.done:  # stall through every remaining disruption
+        left_feasible[env.state.wave] = is_feasible(env.state)
         env.step(ActionType.REFUSE, {"reason": "stalling"})
-    result = _verify(env)
+    left_feasible[env.state.wave] = is_feasible(env.state)
+    result = _verify(env, left_feasible)
     assert IntegrityFlag.DISRUPTIONS_UNRESOLVED in result.integrity_flags
     assert not result.integrity_ok
 
@@ -127,19 +132,39 @@ def test_reference_is_agent_independent_and_penalizes_fragmentation():
 
 
 def test_unresolved_flag_reflects_resolution_not_commit_count():
-    env = _solve(3, Difficulty.HARD)
+    env, _ = _run_greedy(3, Difficulty.HARD)
     expected = len(env.scenario.disruptions) + 1
-    resolved = VERIFIER.verify(env.state, env.trajectory, expected, resolved_commits=1)
-    assert IntegrityFlag.DISRUPTIONS_UNRESOLVED in resolved.integrity_flags
+    result = VERIFIER.verify(env.state, env.trajectory, expected, resolved_waves=1)
+    assert IntegrityFlag.DISRUPTIONS_UNRESOLVED in result.integrity_flags
 
 
 def test_few_legitimate_rejections_are_not_spam():
     env = DispatchEnvironment()
     env.reset(GEN.generate(0, Difficulty.EASY))
-    for _ in range(5):
+    for _ in range(10):
         env.step(ActionType.ASSIGN_ORDER, {"order_id": "ghost", "vehicle_id": "ghost"})
-    result = VERIFIER.verify(env.state, env.trajectory, expected_commits=2)
+    result = VERIFIER.verify(env.state, env.trajectory, expected_waves=2, resolved_waves=0)
     assert IntegrityFlag.INVALID_ACTION_SPAM not in result.integrity_flags
+
+
+def test_high_rejection_rate_flagged_as_spam():
+    env = DispatchEnvironment()
+    env.reset(GEN.generate(0, Difficulty.EASY))
+    for _ in range(30):
+        env.step(ActionType.ASSIGN_ORDER, {"order_id": "ghost", "vehicle_id": "ghost"})
+    result = VERIFIER.verify(env.state, env.trajectory, expected_waves=2, resolved_waves=0)
+    assert IntegrityFlag.INVALID_ACTION_SPAM in result.integrity_flags
+
+
+def test_breakdown_hits_the_busiest_vehicle_so_it_cannot_be_dodged():
+    env = DispatchEnvironment()
+    env.reset(GEN.generate(0, Difficulty.EASY))
+    loaded = env.observation()["vehicles"][0]["id"]
+    for order in env.observation()["unassigned_orders"]:
+        env.step(ActionType.ASSIGN_ORDER, {"order_id": order["id"], "vehicle_id": loaded})
+    env.step(ActionType.REROUTE, {"vehicle_id": loaded})
+    env.step(ActionType.DISPATCH, {})  # breakdown wave
+    assert env.state.vehicles[loaded].in_service is False
 
 
 def test_task_score_rewards_routing_efficiency():
@@ -150,6 +175,6 @@ def test_task_score_rewards_routing_efficiency():
 
 
 def test_task_metric_is_not_saturated_at_one():
-    scores = [task_score(_verify(_solve(seed, Difficulty.HARD))) for seed in range(12)]
+    scores = [task_score(_verify(*_run_greedy(seed, Difficulty.HARD))) for seed in range(12)]
     assert all(s <= 1.0 for s in scores)
     assert min(scores) < 1.0

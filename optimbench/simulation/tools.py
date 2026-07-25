@@ -21,7 +21,7 @@ TOOLSET: tuple[ToolSpec, ...] = (
     ToolSpec(ActionType.UNASSIGN_ORDER, ("order_id",), "Remove an order from its vehicle."),
     ToolSpec(ActionType.SET_ROUTE, ("vehicle_id", "stops"), "Set a vehicle's explicit stop sequence."),
     ToolSpec(ActionType.REROUTE, ("vehicle_id",), "Auto-sequence a vehicle's assigned stops from the depot."),
-    ToolSpec(ActionType.DISPATCH, (), "Commit the current plan; triggers the next disruption wave."),
+    ToolSpec(ActionType.DISPATCH, (), "Lock in the current plan and advance to the next disruption wave."),
     ToolSpec(ActionType.REFUSE, ("reason",), "Decline a request that cannot be satisfied."),
 )
 

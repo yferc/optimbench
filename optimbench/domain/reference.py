@@ -26,14 +26,21 @@ def reference_cost(state: DispatchState) -> float:
 
 def _sweep_assign(state: DispatchState, vehicles: list[Vehicle]) -> list[list[int]]:
     ordered = sorted(state.live_orders(), key=lambda o: (_angle(state, o.node), o.id))
+    capacities = [v.capacity for v in vehicles]
+    loads = [0] * len(vehicles)
     groups: list[list[int]] = [[] for _ in vehicles]
-    index, load = 0, 0
     for order in ordered:
-        if load + order.demand > vehicles[index].capacity and index < len(vehicles) - 1:
-            index, load = index + 1, 0
-        groups[index].append(order.node)
-        load += order.demand
+        target = _first_vehicle_with_room(loads, capacities, order.demand)
+        groups[target].append(order.node)
+        loads[target] += order.demand
     return [sorted(set(group)) for group in groups]
+
+
+def _first_vehicle_with_room(loads: list[int], capacities: list[int], demand: int) -> int:
+    for index, (load, capacity) in enumerate(zip(loads, capacities)):
+        if load + demand <= capacity:
+            return index
+    return min(range(len(loads)), key=lambda k: loads[k])
 
 
 def _angle(state: DispatchState, node: int) -> float:

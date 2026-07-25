@@ -30,7 +30,7 @@ class DispatchScenarioGenerator:
         horizon = self._horizon(network, spec)
         vehicles, orders = self._feasible_construction(rng, spec, network, horizon)
         self._add_distractors(rng, spec, vehicles, orders, horizon)
-        disruptions = self._disruptions(rng, spec, vehicles, orders, horizon)
+        disruptions = self._disruptions(rng, spec, orders, horizon)
         state = DispatchState(network, orders, self._cleared(vehicles, horizon))
         return Scenario(seed, difficulty, state, disruptions)
 
@@ -106,14 +106,13 @@ class DispatchScenarioGenerator:
 
     def _disruptions(
         self, rng: np.random.Generator, spec: DifficultySpec,
-        vehicles: list[Vehicle], orders: dict[str, Order], horizon: float,
+        orders: dict[str, Order], horizon: float,
     ) -> list[Disruption]:
         plan = [DisruptionKind.BREAKDOWN, DisruptionKind.RUSH_ORDER, DisruptionKind.CANCELLATION]
-        live_vehicles = [v for v in vehicles if v.in_service and v.assigned]
         disruptions: list[Disruption] = []
         for kind in plan[: spec.waves]:
-            if kind is DisruptionKind.BREAKDOWN and live_vehicles:
-                disruptions.append(Disruption(kind, vehicle_id=live_vehicles[0].id))
+            if kind is DisruptionKind.BREAKDOWN:
+                disruptions.append(Disruption(kind))
             elif kind is DisruptionKind.RUSH_ORDER:
                 node = int(rng.integers(1, spec.nodes))
                 disruptions.append(Disruption(kind, order=Order(
