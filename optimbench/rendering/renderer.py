@@ -17,7 +17,16 @@ _ROUTE = (
     (46, 230, 200), (255, 182, 74), (169, 155, 255),
     (120, 240, 255), (255, 128, 120), (150, 255, 170),
 )
+_OUTLINE = (13, 19, 32)
 _WORLD = 100.0
+
+_LEGEND = (
+    (_DEPOT, "depot"),
+    (_LIVE_ASSIGNED, "assigned"),
+    (_UNASSIGNED, "unassigned"),
+    (_RUSH, "rush"),
+    (_CANCELLED, "cancelled"),
+)
 
 
 class EpisodeRenderer:
@@ -40,6 +49,7 @@ class EpisodeRenderer:
         self._draw_orders(state)
         self._draw_depot(state)
         self._draw_hud(state, waves_total)
+        self._draw_legend()
         return np.transpose(pygame.surfarray.array3d(self._surface), (1, 0, 2))
 
     def _to_screen(self, node: int, coordinates: np.ndarray) -> tuple[int, int]:
@@ -61,23 +71,40 @@ class EpisodeRenderer:
             point = self._to_screen(order.node, state.network.coordinates)
             color = self._order_color(order, order.id in assigned)
             radius = 5 + order.demand
+            pygame.draw.circle(self._surface, _OUTLINE, point, radius + 1)
             pygame.draw.circle(self._surface, color, point, radius)
 
     def _draw_depot(self, state: DispatchState) -> None:
         x, y = self._to_screen(DEPOT, state.network.coordinates)
+        pygame.draw.rect(self._surface, _OUTLINE, (x - 11, y - 11, 22, 22), border_radius=5)
         pygame.draw.rect(self._surface, _DEPOT, (x - 9, y - 9, 18, 18), border_radius=4)
+        label = self._small.render("DEPOT", True, _DEPOT)
+        self._surface.blit(label, (x - label.get_width() // 2, y + 14))
 
     def _draw_hud(self, state: DispatchState, waves_total: int) -> None:
         cost = fleet_cost(state)
         assigned = len(state.assigned_ids())
         live = len(state.live_orders())
-        feasible = is_feasible(state)
         header = f"wave {state.wave}/{waves_total}   cost {cost:6.1f}   assigned {assigned}/{live}"
         self._surface.blit(self._font.render(header, True, _TEXT), (self._margin, 22))
-        status = "FEASIBLE" if feasible else "INFEASIBLE"
-        color = _DEPOT if feasible else _RUSH
-        self._surface.blit(self._small.render(status, True, color),
-                           (self._margin, self._size - 34))
+        self._draw_status_pill(is_feasible(state))
+
+    def _draw_status_pill(self, feasible: bool) -> None:
+        label, color = ("FEASIBLE", _DEPOT) if feasible else ("INFEASIBLE", _RUSH)
+        text = self._small.render(label, True, _BG)
+        width, height = text.get_width() + 20, text.get_height() + 10
+        x = self._size - self._margin - width
+        pygame.draw.rect(self._surface, color, (x, 20, width, height), border_radius=height // 2)
+        self._surface.blit(text, (x + 10, 25))
+
+    def _draw_legend(self) -> None:
+        y = self._size - self._margin + 20
+        x = self._margin
+        for color, name in _LEGEND:
+            pygame.draw.circle(self._surface, color, (x + 6, y + 6), 6)
+            label = self._small.render(name, True, _TEXT)
+            self._surface.blit(label, (x + 18, y))
+            x += 18 + label.get_width() + 22
 
     @staticmethod
     def _order_color(order, is_assigned: bool):
