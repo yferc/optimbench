@@ -10,6 +10,7 @@ from .enums import (
 )
 from .geometry import euclidean_time_matrix, fleet_cost, route_time, total_fleet_time
 from .models import DEPOT, DispatchState, Order, RoadNetwork, Vehicle
+from .reference import reference_cost
 from .rules import Violation, is_feasible, schedule, violations
 from .scenario import Disruption, Scenario
 from .trajectory import Decision, Trajectory
@@ -36,6 +37,7 @@ __all__ = [
     "euclidean_time_matrix",
     "fleet_cost",
     "is_feasible",
+    "reference_cost",
     "route_time",
     "schedule",
     "total_fleet_time",

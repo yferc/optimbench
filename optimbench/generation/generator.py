@@ -16,7 +16,7 @@ from ..domain import (
     Scenario,
     Vehicle,
     euclidean_time_matrix,
-    total_fleet_time,
+    reference_cost,
 )
 from .scenario import DIFFICULTY, DifficultySpec
 
@@ -30,14 +30,12 @@ class DispatchScenarioGenerator:
         spec = DIFFICULTY[difficulty]
         network = self._network(rng, spec)
         horizon = self._horizon(network, spec)
-        vehicles, orders, routes = self._feasible_construction(rng, spec, network, horizon)
+        vehicles, orders = self._feasible_construction(rng, spec, network, horizon)
         self._add_distractors(rng, spec, vehicles, orders, horizon)
         disruptions = self._disruptions(rng, spec, vehicles, orders, horizon)
+        reference = reference_cost(DispatchState(network, orders, {v.id: v for v in vehicles}))
         state = DispatchState(network, orders, self._cleared(vehicles, horizon))
-        return Scenario(
-            seed, difficulty, state, disruptions,
-            total_fleet_time(network, routes), ReferenceKind.HEURISTIC,
-        )
+        return Scenario(seed, difficulty, state, disruptions, reference, ReferenceKind.HEURISTIC)
 
     def _network(self, rng: np.random.Generator, spec: DifficultySpec) -> RoadNetwork:
         coordinates = rng.random((spec.nodes, 2)) * 100.0
@@ -61,7 +59,7 @@ class DispatchScenarioGenerator:
     def _feasible_construction(
         self, rng: np.random.Generator, spec: DifficultySpec,
         network: RoadNetwork, horizon: float,
-    ) -> tuple[list[Vehicle], dict[str, Order], list[list[int]]]:
+    ) -> tuple[list[Vehicle], dict[str, Order]]:
         nodes = list(range(1, spec.nodes))
         rng.shuffle(nodes)
         quota = self._quota(spec.orders, spec.vehicles)
@@ -69,7 +67,6 @@ class DispatchScenarioGenerator:
 
         vehicles: list[Vehicle] = []
         orders: dict[str, Order] = {}
-        routes: list[list[int]] = []
         cursor = 0
         total_demand = 0
 
@@ -95,8 +92,7 @@ class DispatchScenarioGenerator:
             route.append(DEPOT)
             vehicle.route = route
             vehicles.append(vehicle)
-            routes.append(route)
-        return vehicles, orders, routes
+        return vehicles, orders
 
     def _add_distractors(
         self, rng: np.random.Generator, spec: DifficultySpec,

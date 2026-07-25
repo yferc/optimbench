@@ -46,6 +46,7 @@ class ViolationKind(str, Enum):
 class IntegrityFlag(str, Enum):
     INVALID_ACTION_SPAM = "invalid_action_spam"
     NEVER_COMMITTED = "never_committed"
+    DISRUPTIONS_UNRESOLVED = "disruptions_unresolved"
 
 
 class ReferenceKind(str, Enum):

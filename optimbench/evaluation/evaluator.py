@@ -72,8 +72,9 @@ class Evaluator:
         )
 
     def _run_episode(self, agent: Agent, seed: int, difficulty: Difficulty):
+        scenario = self._generator.generate(seed, difficulty)
         env = DispatchEnvironment()
-        env.reset(self._generator.generate(seed, difficulty))
+        env.reset(scenario)
         agent.reset()
         commit_feasibility: list[bool] = []
         while not env.done:
@@ -81,5 +82,7 @@ class Evaluator:
             if action is ActionType.DISPATCH:
                 commit_feasibility.append(is_feasible(env.state))
             env.step(action, args)
-        result = self._verifier.verify(env.state, env.trajectory, env.scenario.reference_time)
+        expected_commits = len(scenario.disruptions) + 1
+        commit_feasibility += [False] * (expected_commits - len(commit_feasibility))
+        result = self._verifier.verify(env.state, env.trajectory, expected_commits)
         return result, commit_feasibility
