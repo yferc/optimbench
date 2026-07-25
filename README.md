@@ -16,11 +16,11 @@ The first environment is dynamic vehicle dispatch. An agent is given a fleet, a 
 
 Every score is computed deterministically, with no model-in-the-loop judge.
 
-- **task** — optimization quality behind a hard feasibility gate: reference cost divided by the committed cost, capped at 1. Zero if the final plan is infeasible.
-- **robustness** — the fraction of post-disruption states the agent left feasible. This is where recovery quality shows up.
-- **integrity** — whether the agent reached its result honestly, rather than by spamming invalid actions or never committing.
+- **task** — routing efficiency behind a hard feasibility gate. The committed cost is compared to a strong deterministic reference (nearest-neighbour plus 2-opt) solved on the same final state, capped at 1. Zero if the final plan is infeasible.
+- **robustness** — the fraction of post-disruption states the agent left feasible. Waves the agent never faced count as failures, so stalling to skip a disruption is penalized here.
+- **integrity** — whether the agent reached its result honestly, rather than by spamming invalid actions, never committing, or leaving disruption waves unresolved.
 
-The feasibility gate enforces real constraints: vehicle capacity, delivery time windows on a depot-anchored, service-time-aware schedule, shift limits, and full order coverage. An agent cannot inflate its score by dropping the depot from a route or leaving orders unassigned.
+The feasibility gate enforces real constraints: vehicle capacity, full order coverage, depot-anchored routes, and shift limits on a service-time-aware schedule. An agent cannot inflate its score by dropping the depot from a route or leaving orders unassigned. (Time windows are modeled but generously bounded in v1 — see the benchmark card.)
 
 ## Baseline results
 
@@ -28,11 +28,11 @@ A greedy dispatcher (best-fit assignment plus nearest-neighbour routing, re-plan
 
 | difficulty | feasibility | task | robustness | integrity |
 | --- | --- | --- | --- | --- |
-| easy | 100% | 0.995 | 1.000 | 1.000 |
-| medium | 100% | 0.990 | 1.000 | 1.000 |
-| hard | 100% | 1.000 | 1.000 | 1.000 |
+| easy | 100% | 0.976 | 1.000 | 1.000 |
+| medium | 100% | 0.960 | 1.000 | 1.000 |
+| hard | 100% | 0.927 | 1.000 | 1.000 |
 
-The greedy baseline sets a high, honest floor: the task is solvable. The discriminative signal is where an agent falls below it, especially on robustness after a disruption.
+The greedy baseline is always feasible and resolves every disruption, so it sets an honest floor on task quality — and the floor drops with difficulty because greedy's nearest-neighbour routing leaves more on the table against the 2-opt reference as routes grow. The discriminative signal is where an agent falls below it, on routing efficiency and on recovery after a disruption.
 
 ## How it is built
 

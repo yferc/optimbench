@@ -15,18 +15,21 @@ cancellation), invalidating part of the committed plan and forcing recovery.
 
 ## Evaluation
 Three deterministic scores, no model-in-the-loop judge:
-- **task** — `min(1, reference_cost / committed_cost)` behind a hard feasibility gate (0 if infeasible).
-- **robustness** — fraction of post-disruption committed states that were feasible.
-- **integrity** — 1.0 unless the agent spammed invalid actions or never committed.
+- **task** — `min(1, reference_cost / committed_cost)` behind a hard feasibility gate (0 if infeasible). `reference_cost` is a strong deterministic solver (nearest-neighbour + 2-opt) run on the final committed state, so the score reads as routing efficiency.
+- **robustness** — fraction of committed states that were feasible, counting every disruption wave the agent was expected to face; waves left unfaced score as failures.
+- **integrity** — 1.0 unless the agent spammed invalid actions, never committed, or ended with disruptions unresolved.
 
 Feasibility (the gate) enforces: capacity, full live-order coverage, depot-anchored
-routes, delivery time windows on a service-time-aware schedule, and shift limits.
+routes, and shift limits on a service-time-aware schedule. Time windows are modeled
+but generously bounded in v1 (see Limitations).
 
 ## Baselines
 Greedy dispatcher (best-fit assignment + nearest-neighbour routing, re-planning
 after each disruption), 50 scenarios per difficulty: feasibility 100% across
-easy/medium/hard; task 0.99–1.00; robustness 1.00; integrity 1.00. The floor is
-high by design — the task is solvable; the signal is where agents fall below it.
+easy/medium/hard; task 0.98 / 0.96 / 0.93 (easy/medium/hard); robustness 1.00;
+integrity 1.00. Greedy is always feasible and resolves every disruption, so it
+sets an honest task floor that drops with difficulty as nearest-neighbour routing
+falls further behind the 2-opt reference.
 
 ## Failure modes it targets
 - Premature completion: declaring done before repairing a post-disruption violation.
@@ -41,8 +44,11 @@ after a breakdown, and time windows are set from a global horizon so a
 capacity-feasible plan is always time-feasible.
 
 ## Limitations
-- Time windows are loose in v1 (capacity and recovery are the binding constraints);
-  binding windows are planned for a later version.
-- The reference is a construction heuristic, not a proven optimum, so `task` is a
-  ratio against a strong baseline rather than a true optimality gap on large instances.
+- Time windows are loose in v1 (capacity, coverage, depot-anchoring and recovery are
+  the binding constraints); binding windows that preserve the feasibility guarantee
+  are planned for a later version.
+- The reference is a nearest-neighbour + 2-opt heuristic, not a proven optimum, so
+  `task` measures routing efficiency against a strong baseline rather than a true
+  optimality gap. It is computed on the agent's own assignment, so it rewards good
+  routing given an assignment rather than optimal fleet balancing.
 - Single problem family (vehicle dispatch); scheduling and packing members are planned.
