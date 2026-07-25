@@ -76,6 +76,8 @@ class DispatchEnvironment:
         return {
             "wave": state.wave,
             "waves_total": len(self._scenario.disruptions),
+            "final_wave": self._wave_cursor >= len(self._scenario.disruptions),
+            "awaiting_commit": True,
             "feasible": is_feasible(state),
             "vehicles": [self._vehicle_view(v, state) for v in state.vehicles.values()],
             "unassigned_orders": [

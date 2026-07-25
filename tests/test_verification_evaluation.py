@@ -25,22 +25,26 @@ GEN = DispatchScenarioGenerator()
 VERIFIER = DispatchVerifier()
 
 
+def _committed_feasibility(env: DispatchEnvironment, agent) -> list[bool]:
+    committed: list[bool] = []
+    while not env.done:
+        action, args = agent.act(env.observation())
+        feasible = is_feasible(env.state) if action is ActionType.DISPATCH else False
+        if env.step(action, args)["accepted"] and action is ActionType.DISPATCH:
+            committed.append(feasible)
+    return committed
+
+
 def _run_greedy(seed: int, difficulty: Difficulty):
     env = DispatchEnvironment()
     env.reset(GEN.generate(seed, difficulty))
-    agent = GreedyDispatcher()
-    left_feasible: dict[int, bool] = {}
-    while not env.done:
-        left_feasible[env.state.wave] = is_feasible(env.state)
-        env.step(*agent.act(env.observation()))
-    left_feasible[env.state.wave] = is_feasible(env.state)
-    return env, left_feasible
+    committed = _committed_feasibility(env, GreedyDispatcher())
+    return env, committed
 
 
-def _verify(env: DispatchEnvironment, left_feasible: dict[int, bool]):
+def _verify(env: DispatchEnvironment, committed: list[bool]):
     waves = len(env.scenario.disruptions) + 1
-    resolved = sum(left_feasible.get(wave, False) for wave in range(waves))
-    return VERIFIER.verify(env.state, env.trajectory, waves, resolved)
+    return VERIFIER.verify(env.state, env.trajectory, waves, sum(committed[:waves]))
 
 
 def test_greedy_solution_verifies_feasible_easy():
@@ -95,17 +99,39 @@ def test_dodging_disruptions_fails_integrity_and_robustness():
     env = DispatchEnvironment()
     env.reset(GEN.generate(1, Difficulty.HARD))
     agent = GreedyDispatcher()
-    left_feasible: dict[int, bool] = {}
+    committed: list[bool] = []
     while env.state.wave == 0 and not env.done:  # solve then commit wave 0 (advances to wave 1)
-        left_feasible[env.state.wave] = is_feasible(env.state)
-        env.step(*agent.act(env.observation()))
-    while not env.done:  # stall through every remaining disruption
-        left_feasible[env.state.wave] = is_feasible(env.state)
+        action, args = agent.act(env.observation())
+        feasible = is_feasible(env.state) if action is ActionType.DISPATCH else False
+        if env.step(action, args)["accepted"] and action is ActionType.DISPATCH:
+            committed.append(feasible)
+    while not env.done:  # stall through every remaining disruption instead of committing
         env.step(ActionType.REFUSE, {"reason": "stalling"})
-    left_feasible[env.state.wave] = is_feasible(env.state)
-    result = _verify(env, left_feasible)
+    waves = len(env.scenario.disruptions) + 1
+    result = VERIFIER.verify(env.state, env.trajectory, waves, sum(committed))
     assert IntegrityFlag.DISRUPTIONS_UNRESOLVED in result.integrity_flags
     assert not result.integrity_ok
+
+
+def test_final_wave_must_be_committed_to_count_as_resolved():
+    env = DispatchEnvironment()
+    env.reset(GEN.generate(0, Difficulty.HARD))
+    agent = GreedyDispatcher()
+    disruptions = len(env.scenario.disruptions)
+    committed: list[bool] = []
+    while env.state.wave < disruptions and not env.done:
+        action, args = agent.act(env.observation())
+        feasible = is_feasible(env.state) if action is ActionType.DISPATCH else False
+        if env.step(action, args)["accepted"] and action is ActionType.DISPATCH:
+            committed.append(feasible)
+    while not env.done:  # resolve the final wave but never commit it
+        action, args = agent.act(env.observation())
+        if action is ActionType.DISPATCH:
+            action, args = ActionType.REFUSE, {"reason": "withholding final commit"}
+        env.step(action, args)
+    result = VERIFIER.verify(env.state, env.trajectory, disruptions + 1, sum(committed))
+    assert result.feasible
+    assert IntegrityFlag.DISRUPTIONS_UNRESOLVED in result.integrity_flags
 
 
 def test_reference_is_agent_independent_and_penalizes_fragmentation():
