@@ -11,10 +11,11 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Yahia Ferchichi" }]
 keywords = ["evaluation", "reinforcement-learning", "optimization", "agents", "verifier", "rlvr", "benchmark"]
-dependencies = ["numpy>=1.23", "pydantic>=2.0"]
+dependencies = ["numpy>=1.23"]
 
 [project.optional-dependencies]
 solver = ["ortools>=9.7"]
+media = ["imageio>=2.31", "imageio-ffmpeg>=0.4", "pygame>=2.5"]
 dev = ["pytest>=7.0", "ruff>=0.1"]
 
 [tool.setuptools.packages.find]
