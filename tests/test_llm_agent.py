@@ -11,7 +11,7 @@ class _ScriptedClient:
         self._replies = replies
         self._turn = 0
 
-    def complete(self, system: str, user: str) -> str:
+    def chat(self, messages: list[dict[str, str]]) -> str:
         reply = self._replies[min(self._turn, len(self._replies) - 1)]
         self._turn += 1
         return reply
