@@ -24,19 +24,21 @@ The feasibility gate enforces real constraints: vehicle capacity, full order cov
 
 ## Results
 
-Three kinds of agent, one verifier, 50 procedurally generated scenarios per difficulty. The number is **task** (dispatch quality vs the reference); all three agents stay 100% feasible with robustness and integrity at 1.0.
+A hand-written heuristic and a trained network, one verifier, 50 procedurally generated scenarios per difficulty. The number is **task** (dispatch quality vs the reference); both stay 100% feasible with robustness and integrity at 1.0.
 
 | agent | easy | medium | hard |
 | --- | --- | --- | --- |
 | greedy heuristic | 0.834 | 0.747 | 0.658 |
 | learned RL policy | **0.921** | **0.852** | **0.808** |
-| LLM (bring your own key) | — | — | — |
 
 - **Greedy** — best-fit assignment plus nearest-neighbour routing, re-planning after each disruption. Always feasible, but its non-geometric assignment leaves real headroom against the sweep-plus-2-opt reference.
 - **Learned RL policy** — the same route-then-dispatch skeleton with greedy's assignment replaced by a small policy network scored on order/vehicle geometry, trained with REINFORCE against the greedy baseline. It closes most of that headroom, and the gain grows with difficulty (+0.09 easy → +0.15 hard) because assignment quality dominates on the larger instances.
-- **LLM** — the tool-using agent runs on any OpenAI-compatible endpoint (Groq, Gemini, Ollama, …). Fill the row with `scripts/run_llm.py` / `scripts/benchmark.py` and your own key.
 
-The point of the environment is that this table is produced by code, not judgement: the same deterministic verifier scores a hand-written heuristic, a trained network, and a language model on equal terms.
+The point is that this table is produced by code, not judgement: the same deterministic verifier scores a hand-written heuristic and a trained network on equal terms.
+
+### LLM agents
+
+The tool-using agent runs on any OpenAI-compatible endpoint (Groq, Gemini, Ollama, x.ai, …) via three env vars — see `scripts/run_llm.py`. As a first probe, a small local model (Qwen2.5-7B through Ollama, ReAct-style with short-term memory) scored **0% feasible on easy over 5 seeds**: it follows the tool protocol and gets the assign → reroute → dispatch shape right, but does not recover cleanly from the breakdown — it leaves an order unassigned and a reloaded vehicle's route stale, then dispatches anyway. The environment is solvable (greedy is 100% feasible on the same seeds); holding feasibility *through a disruption* is the gap this benchmark is built to surface. A hosted frontier model is expected to do far better; the harness is one API key away from running it.
 
 ## How it is built
 
