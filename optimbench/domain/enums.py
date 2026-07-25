@@ -49,11 +49,6 @@ class IntegrityFlag(str, Enum):
     DISRUPTIONS_UNRESOLVED = "disruptions_unresolved"
 
 
-class ReferenceKind(str, Enum):
-    OPTIMAL = "optimal"
-    HEURISTIC = "heuristic"
-
-
 class Difficulty(str, Enum):
     EASY = "easy"
     MEDIUM = "medium"

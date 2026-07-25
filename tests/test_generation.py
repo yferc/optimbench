@@ -22,11 +22,6 @@ def test_vehicles_start_cleared(difficulty):
     assert all(not v.assigned and not v.route for v in state.vehicles.values())
 
 
-@pytest.mark.parametrize("difficulty", list(Difficulty))
-def test_reference_time_positive(difficulty):
-    assert GEN.generate(0, difficulty).reference_time > 0.0
-
-
 def test_disruption_count_matches_spec():
     assert len(GEN.generate(0, Difficulty.EASY).disruptions) == DIFFICULTY[Difficulty.EASY].waves
     assert len(GEN.generate(0, Difficulty.HARD).disruptions) == DIFFICULTY[Difficulty.HARD].waves
@@ -35,8 +30,8 @@ def test_disruption_count_matches_spec():
 def test_determinism_same_seed():
     a = GEN.generate(7, Difficulty.MEDIUM)
     b = GEN.generate(7, Difficulty.MEDIUM)
-    assert a.reference_time == b.reference_time
     assert list(a.state.orders) == list(b.state.orders)
+    assert [d.kind for d in a.disruptions] == [d.kind for d in b.disruptions]
 
 
 def test_cancelled_distractors_present_on_hard():

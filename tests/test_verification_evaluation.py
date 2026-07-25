@@ -2,7 +2,18 @@ import numpy as np
 import pytest
 
 from optimbench.agents import GreedyDispatcher
-from optimbench.domain import ActionType, Difficulty, IntegrityFlag
+from optimbench.domain import (
+    ActionType,
+    Difficulty,
+    DispatchState,
+    IntegrityFlag,
+    Order,
+    RoadNetwork,
+    Vehicle,
+    euclidean_time_matrix,
+    fleet_cost,
+    reference_cost,
+)
 from optimbench.evaluation import Evaluator, iqm, task_score
 from optimbench.evaluation.metrics import bootstrap_ci
 from optimbench.generation import DispatchScenarioGenerator
@@ -92,10 +103,43 @@ def test_dodging_disruptions_fails_integrity_and_robustness():
     assert not result.integrity_ok
 
 
-def test_reference_cost_beats_or_matches_naive_route():
-    env = _solve(4, Difficulty.HARD)
-    result = _verify(env)
-    assert result.reference <= result.objective + 1e-6
+def test_reference_is_agent_independent_and_penalizes_fragmentation():
+    coords = np.array([[0, 0], [90, 0], [90, 5], [90, 10]], dtype=float)
+    times = euclidean_time_matrix(coords)
+    net = RoadNetwork(coords, times, times.copy())
+    orders = {f"o{i}": Order(f"o{i}", i, 1, 0, 10_000, 0) for i in (1, 2, 3)}
+    fragmented = DispatchState(net, dict(orders), {
+        "v0": Vehicle("v0", 12, 0, 10_000, assigned=["o1"], route=[0, 1, 0]),
+        "v1": Vehicle("v1", 12, 0, 10_000, assigned=["o2"], route=[0, 2, 0]),
+        "v2": Vehicle("v2", 12, 0, 10_000, assigned=["o3"], route=[0, 3, 0]),
+    })
+    consolidated = DispatchState(net, dict(orders), {
+        "v0": Vehicle("v0", 12, 0, 10_000, assigned=["o1", "o2", "o3"], route=[0, 1, 2, 3, 0]),
+        "v1": Vehicle("v1", 12, 0, 10_000),
+        "v2": Vehicle("v2", 12, 0, 10_000),
+    })
+    assert reference_cost(fragmented) == pytest.approx(reference_cost(consolidated))
+
+    frag = VerificationResult(True, objective=fleet_cost(fragmented), reference=reference_cost(fragmented))
+    cons = VerificationResult(True, objective=fleet_cost(consolidated), reference=reference_cost(consolidated))
+    assert task_score(frag) < task_score(cons)
+    assert task_score(cons) == pytest.approx(1.0, abs=0.05)
+
+
+def test_unresolved_flag_reflects_resolution_not_commit_count():
+    env = _solve(3, Difficulty.HARD)
+    expected = len(env.scenario.disruptions) + 1
+    resolved = VERIFIER.verify(env.state, env.trajectory, expected, resolved_commits=1)
+    assert IntegrityFlag.DISRUPTIONS_UNRESOLVED in resolved.integrity_flags
+
+
+def test_few_legitimate_rejections_are_not_spam():
+    env = DispatchEnvironment()
+    env.reset(GEN.generate(0, Difficulty.EASY))
+    for _ in range(5):
+        env.step(ActionType.ASSIGN_ORDER, {"order_id": "ghost", "vehicle_id": "ghost"})
+    result = VERIFIER.verify(env.state, env.trajectory, expected_commits=2)
+    assert IntegrityFlag.INVALID_ACTION_SPAM not in result.integrity_flags
 
 
 def test_task_score_rewards_routing_efficiency():

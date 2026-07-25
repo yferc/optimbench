@@ -11,12 +11,10 @@ from ..domain import (
     Order,
     OrderStatus,
     Priority,
-    ReferenceKind,
     RoadNetwork,
     Scenario,
     Vehicle,
     euclidean_time_matrix,
-    reference_cost,
 )
 from .scenario import DIFFICULTY, DifficultySpec
 
@@ -33,9 +31,8 @@ class DispatchScenarioGenerator:
         vehicles, orders = self._feasible_construction(rng, spec, network, horizon)
         self._add_distractors(rng, spec, vehicles, orders, horizon)
         disruptions = self._disruptions(rng, spec, vehicles, orders, horizon)
-        reference = reference_cost(DispatchState(network, orders, {v.id: v for v in vehicles}))
         state = DispatchState(network, orders, self._cleared(vehicles, horizon))
-        return Scenario(seed, difficulty, state, disruptions, reference, ReferenceKind.HEURISTIC)
+        return Scenario(seed, difficulty, state, disruptions)
 
     def _network(self, rng: np.random.Generator, spec: DifficultySpec) -> RoadNetwork:
         coordinates = rng.random((spec.nodes, 2)) * 100.0

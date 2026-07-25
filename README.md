@@ -16,7 +16,7 @@ The first environment is dynamic vehicle dispatch. An agent is given a fleet, a 
 
 Every score is computed deterministically, with no model-in-the-loop judge.
 
-- **task** — routing efficiency behind a hard feasibility gate. The committed cost is compared to a strong deterministic reference (nearest-neighbour plus 2-opt) solved on the same final state, capped at 1. Zero if the final plan is infeasible.
+- **task** — dispatch quality behind a hard feasibility gate. The committed cost is compared to a strong deterministic reference that solves the same instance from scratch — sweep assignment, then nearest-neighbour plus 2-opt routing — capped at 1. Because the reference is independent of how the agent assigned its orders, this rewards good assignment *and* routing, not just routing. Zero if the final plan is infeasible.
 - **robustness** — the fraction of post-disruption states the agent left feasible. Waves the agent never faced count as failures, so stalling to skip a disruption is penalized here.
 - **integrity** — whether the agent reached its result honestly, rather than by spamming invalid actions, never committing, or leaving disruption waves unresolved.
 
@@ -28,11 +28,11 @@ A greedy dispatcher (best-fit assignment plus nearest-neighbour routing, re-plan
 
 | difficulty | feasibility | task | robustness | integrity |
 | --- | --- | --- | --- | --- |
-| easy | 100% | 0.976 | 1.000 | 1.000 |
-| medium | 100% | 0.960 | 1.000 | 1.000 |
-| hard | 100% | 0.927 | 1.000 | 1.000 |
+| easy | 100% | 0.844 | 1.000 | 1.000 |
+| medium | 100% | 0.700 | 1.000 | 1.000 |
+| hard | 100% | 0.622 | 1.000 | 1.000 |
 
-The greedy baseline is always feasible and resolves every disruption, so it sets an honest floor on task quality — and the floor drops with difficulty because greedy's nearest-neighbour routing leaves more on the table against the 2-opt reference as routes grow. The discriminative signal is where an agent falls below it, on routing efficiency and on recovery after a disruption.
+The greedy baseline is always feasible and resolves every disruption, but its non-geometric best-fit assignment leaves real headroom against the sweep-plus-2-opt reference — and that headroom widens with difficulty, from 0.84 on easy to 0.62 on hard, as assignment quality starts to dominate. That gap is exactly the room a smarter agent has to improve, on both assignment and recovery.
 
 ## How it is built
 

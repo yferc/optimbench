@@ -83,6 +83,9 @@ class Evaluator:
                 commit_feasibility.append(is_feasible(env.state))
             env.step(action, args)
         expected_commits = len(scenario.disruptions) + 1
+        resolved_commits = sum(commit_feasibility)
         commit_feasibility += [False] * (expected_commits - len(commit_feasibility))
-        result = self._verifier.verify(env.state, env.trajectory, expected_commits)
+        result = self._verifier.verify(
+            env.state, env.trajectory, expected_commits, resolved_commits
+        )
         return result, commit_feasibility

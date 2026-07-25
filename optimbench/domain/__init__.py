@@ -5,7 +5,6 @@ from .enums import (
     IntegrityFlag,
     OrderStatus,
     Priority,
-    ReferenceKind,
     ViolationKind,
 )
 from .geometry import euclidean_time_matrix, fleet_cost, route_time, total_fleet_time
@@ -27,7 +26,6 @@ __all__ = [
     "Order",
     "OrderStatus",
     "Priority",
-    "ReferenceKind",
     "RoadNetwork",
     "Scenario",
     "Trajectory",

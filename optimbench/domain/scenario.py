@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .enums import Difficulty, DisruptionKind, ReferenceKind
+from .enums import Difficulty, DisruptionKind
 from .models import DispatchState, Order
 
 
@@ -20,5 +20,3 @@ class Scenario:
     difficulty: Difficulty
     state: DispatchState
     disruptions: list[Disruption]
-    reference_time: float
-    reference_kind: ReferenceKind

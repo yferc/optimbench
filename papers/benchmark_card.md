@@ -15,7 +15,7 @@ cancellation), invalidating part of the committed plan and forcing recovery.
 
 ## Evaluation
 Three deterministic scores, no model-in-the-loop judge:
-- **task** — `min(1, reference_cost / committed_cost)` behind a hard feasibility gate (0 if infeasible). `reference_cost` is a strong deterministic solver (nearest-neighbour + 2-opt) run on the final committed state, so the score reads as routing efficiency.
+- **task** — `min(1, reference_cost / committed_cost)` behind a hard feasibility gate (0 if infeasible). `reference_cost` solves the same final instance from scratch — sweep assignment, then nearest-neighbour + 2-opt routing — independent of the agent's own assignment, so the score reflects assignment *and* routing quality.
 - **robustness** — fraction of committed states that were feasible, counting every disruption wave the agent was expected to face; waves left unfaced score as failures.
 - **integrity** — 1.0 unless the agent spammed invalid actions, never committed, or ended with disruptions unresolved.
 
@@ -26,10 +26,10 @@ but generously bounded in v1 (see Limitations).
 ## Baselines
 Greedy dispatcher (best-fit assignment + nearest-neighbour routing, re-planning
 after each disruption), 50 scenarios per difficulty: feasibility 100% across
-easy/medium/hard; task 0.98 / 0.96 / 0.93 (easy/medium/hard); robustness 1.00;
-integrity 1.00. Greedy is always feasible and resolves every disruption, so it
-sets an honest task floor that drops with difficulty as nearest-neighbour routing
-falls further behind the 2-opt reference.
+easy/medium/hard; task 0.84 / 0.70 / 0.62 (easy/medium/hard); robustness 1.00;
+integrity 1.00. Greedy is always feasible and resolves every disruption, but its
+non-geometric assignment leaves substantial task headroom that widens with
+difficulty — the room a smarter agent has to improve.
 
 ## Failure modes it targets
 - Premature completion: declaring done before repairing a post-disruption violation.
@@ -47,8 +47,7 @@ capacity-feasible plan is always time-feasible.
 - Time windows are loose in v1 (capacity, coverage, depot-anchoring and recovery are
   the binding constraints); binding windows that preserve the feasibility guarantee
   are planned for a later version.
-- The reference is a nearest-neighbour + 2-opt heuristic, not a proven optimum, so
-  `task` measures routing efficiency against a strong baseline rather than a true
-  optimality gap. It is computed on the agent's own assignment, so it rewards good
-  routing given an assignment rather than optimal fleet balancing.
+- The reference is a sweep + nearest-neighbour + 2-opt heuristic, not a proven
+  optimum, so `task` measures the gap to a strong baseline rather than a true
+  optimality gap; an agent that beats the heuristic simply saturates at 1.0.
 - Single problem family (vehicle dispatch); scheduling and packing members are planned.

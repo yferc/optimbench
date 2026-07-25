@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import numpy as np
 
 from .geometry import route_time
@@ -7,26 +9,36 @@ from .models import DEPOT, DispatchState, Vehicle
 
 
 def reference_cost(state: DispatchState) -> float:
-    """Fleet time of a strong deterministic solution: each in-service vehicle's
-    assigned stops routed by nearest-neighbour, then improved with 2-opt.
-    task_score measures how close an agent's routing gets to this."""
+    """Fleet time of a strong deterministic dispatch of the live orders over the
+    in-service fleet: sweep assignment, then nearest-neighbour + 2-opt routing.
+    Independent of how the agent assigned or routed — task_score measures the
+    agent's committed cost against this canonical solution of the same instance."""
+    vehicles = [v for v in state.vehicles.values() if v.in_service]
+    if not vehicles:
+        return 0.0
+    times = state.network.true_time
     return float(sum(
-        _best_route_cost(state, vehicle)
-        for vehicle in state.vehicles.values()
-        if vehicle.in_service
+        route_time(state.network, _two_opt(times, _nearest_neighbour(times, nodes)))
+        for nodes in _sweep_assign(state, vehicles)
+        if nodes
     ))
 
 
-def _best_route_cost(state: DispatchState, vehicle: Vehicle) -> float:
-    nodes = _assigned_nodes(state, vehicle)
-    if not nodes:
-        return 0.0
-    times = state.network.true_time
-    return route_time(state.network, _two_opt(times, _nearest_neighbour(times, nodes)))
+def _sweep_assign(state: DispatchState, vehicles: list[Vehicle]) -> list[list[int]]:
+    ordered = sorted(state.live_orders(), key=lambda o: (_angle(state, o.node), o.id))
+    groups: list[list[int]] = [[] for _ in vehicles]
+    index, load = 0, 0
+    for order in ordered:
+        if load + order.demand > vehicles[index].capacity and index < len(vehicles) - 1:
+            index, load = index + 1, 0
+        groups[index].append(order.node)
+        load += order.demand
+    return [sorted(set(group)) for group in groups]
 
 
-def _assigned_nodes(state: DispatchState, vehicle: Vehicle) -> list[int]:
-    return sorted({state.orders[o].node for o in vehicle.assigned if o in state.orders})
+def _angle(state: DispatchState, node: int) -> float:
+    x, y = state.network.coordinates[node] - state.network.coordinates[DEPOT]
+    return math.atan2(y, x)
 
 
 def _nearest_neighbour(times: np.ndarray, nodes: list[int]) -> list[int]:
