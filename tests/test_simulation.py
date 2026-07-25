@@ -1,3 +1,5 @@
+import pytest
+
 from optimbench.agents import GreedyDispatcher
 from optimbench.domain import ActionType, Difficulty
 from optimbench.generation import DispatchScenarioGenerator
@@ -82,3 +84,28 @@ def test_trajectory_logs_every_decision():
     env.step(ActionType.LIST_ORDERS, {"filter": "live"})
     env.step(ActionType.CHECK_FEASIBILITY, {})
     assert len(env.trajectory.decisions) == 2
+
+
+def test_step_before_reset_raises():
+    with pytest.raises(RuntimeError):
+        DispatchEnvironment().step(ActionType.LIST_ORDERS, {})
+
+
+def test_malformed_args_are_rejected_not_crashing():
+    env = _fresh()
+    unhashable = [
+        (ActionType.LIST_ORDERS, {"filter": [1]}),
+        (ActionType.GET_VEHICLE, {"vehicle_id": [1]}),
+        (ActionType.ASSIGN_ORDER, {"order_id": {}, "vehicle_id": "veh_0"}),
+        (ActionType.SET_ROUTE, {"vehicle_id": [1], "stops": [0, 1, 0]}),
+        (ActionType.REROUTE, {"vehicle_id": {}}),
+        (ActionType.UNASSIGN_ORDER, {"order_id": [1]}),
+    ]
+    for action, args in unhashable:
+        assert env.step(action, args)["accepted"] is False
+
+
+def test_as_node_rejects_bool_float_and_string():
+    env = _fresh()
+    for bad in (True, 1.9, "3"):
+        assert env.step(ActionType.QUERY_TRAFFIC, {"a": bad, "b": 2})["accepted"] is False

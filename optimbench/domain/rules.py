@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .enums import ViolationKind
-from .models import DEPOT, DispatchState, Vehicle
+from .models import DEPOT, DispatchState, Order, Vehicle
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,8 @@ def is_feasible(state: DispatchState) -> bool:
 def schedule(state: DispatchState, vehicle: Vehicle) -> tuple[dict[int, float], float]:
     """Arrival time at each stop and the return-to-depot time, with travel,
     wait-until-window_open and service time — the executable timeline."""
+    if len(vehicle.route) < 2:
+        return {}, 0.0
     service_at, open_at = _stop_timing(state, vehicle)
     arrival: dict[int, float] = {}
     clock = 0.0
@@ -64,15 +66,14 @@ def _vehicle_violations(state: DispatchState, vehicle: Vehicle) -> list[Violatio
         return found + [Violation(ViolationKind.ROUTE_NOT_DEPOT_ANCHORED, vehicle.id)]
 
     route_nodes = set(vehicle.route)
-    if any(state.orders[o].node not in route_nodes for o in vehicle.assigned):
+    if any(order.node not in route_nodes for order in _assigned_orders(state, vehicle)):
         found.append(Violation(ViolationKind.ROUTE_MISSING_STOP, vehicle.id))
         return found
 
     arrival, return_time = schedule(state, vehicle)
-    for order_id in vehicle.assigned:
-        order = state.orders[order_id]
+    for order in _assigned_orders(state, vehicle):
         if arrival[order.node] > order.window_close:
-            found.append(Violation(ViolationKind.TIME_WINDOW_MISSED, order_id))
+            found.append(Violation(ViolationKind.TIME_WINDOW_MISSED, order.id))
     if return_time > vehicle.shift_end:
         found.append(Violation(ViolationKind.SHIFT_END_EXCEEDED, vehicle.id))
     return found
@@ -87,11 +88,14 @@ def _route_out_of_bounds(state: DispatchState, vehicle: Vehicle) -> bool:
     return any(node < 0 or node >= size for node in vehicle.route)
 
 
+def _assigned_orders(state: DispatchState, vehicle: Vehicle) -> list[Order]:
+    return [state.orders[o] for o in vehicle.assigned if o in state.orders]
+
+
 def _stop_timing(state: DispatchState, vehicle: Vehicle):
     service_at: dict[int, float] = {}
     open_at: dict[int, float] = {}
-    for order_id in vehicle.assigned:
-        order = state.orders[order_id]
+    for order in _assigned_orders(state, vehicle):
         service_at[order.node] = service_at.get(order.node, 0.0) + order.service_time
         open_at[order.node] = max(open_at.get(order.node, 0.0), order.window_open)
     return service_at, open_at

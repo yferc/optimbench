@@ -68,6 +68,8 @@ class EpisodeRenderer:
     def _draw_orders(self, state: DispatchState) -> None:
         assigned = state.assigned_ids()
         for order in state.orders.values():
+            if not 0 <= order.node < state.network.size:
+                continue
             point = self._to_screen(order.node, state.network.coordinates)
             color = self._order_color(order, order.id in assigned)
             radius = 5 + order.demand

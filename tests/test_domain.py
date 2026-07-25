@@ -10,6 +10,7 @@ from optimbench.domain import (
     euclidean_time_matrix,
     is_feasible,
     route_time,
+    schedule,
     violations,
 )
 
@@ -88,3 +89,14 @@ def test_shift_end_exceeded_detected(network):
     veh = Vehicle("v1", 10, 0, 1, assigned=["o1"], route=[0, 1, 0])
     kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
     assert ViolationKind.SHIFT_END_EXCEEDED in kinds
+
+
+def test_schedule_handles_empty_route(network):
+    veh = Vehicle("v1", 10, 0, 10_000, assigned=["o1"], route=[])
+    arrival, return_time = schedule(DispatchState(network, {}, {"v1": veh}), veh)
+    assert arrival == {} and return_time == 0.0
+
+
+def test_violations_tolerate_ghost_assigned_id(network):
+    veh = Vehicle("v1", 10, 0, 10_000, assigned=["ghost"], route=[0, 1, 0])
+    assert is_feasible(DispatchState(network, {}, {"v1": veh}))

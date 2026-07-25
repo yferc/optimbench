@@ -43,6 +43,8 @@ class DispatchEnvironment:
         return TOOLSET
 
     def step(self, action: ActionType, args: dict[str, Any] | None = None) -> dict[str, Any]:
+        if self._state is None:
+            raise RuntimeError("reset() must be called before step()")
         args = args or {}
         result, accepted, note = self._dispatch_action(action, args)
         self._trajectory.record(Decision(self._turn, action, args, accepted, note))
@@ -101,6 +103,8 @@ class DispatchEnvironment:
 
     def _list_orders(self, args):
         which = args.get("filter", "live")
+        if not isinstance(which, str):
+            return {}, False, "filter must be a string"
         pool = list(self._state.orders.values())
         assigned = self._state.assigned_ids()
         selected = {
@@ -112,7 +116,7 @@ class DispatchEnvironment:
         return [self._order_view(o) for o in selected], True, which
 
     def _get_vehicle(self, args):
-        vehicle = self._state.vehicles.get(args.get("vehicle_id"))
+        vehicle = self._vehicle(args.get("vehicle_id"))
         if vehicle is None:
             return {}, False, "no such vehicle"
         return self._vehicle_view(vehicle, self._state), True, ""
@@ -131,8 +135,8 @@ class DispatchEnvironment:
         }, True, ""
 
     def _assign_order(self, args):
-        order = self._state.orders.get(args.get("order_id"))
-        vehicle = self._state.vehicles.get(args.get("vehicle_id"))
+        order = self._order(args.get("order_id"))
+        vehicle = self._vehicle(args.get("vehicle_id"))
         if order is None or vehicle is None:
             return {}, False, "unknown order or vehicle"
         if order.status is not OrderStatus.LIVE:
@@ -144,10 +148,10 @@ class DispatchEnvironment:
         return {}, True, ""
 
     def _unassign_order(self, args):
-        return {}, self._detach(args.get("order_id")), ""
+        return {}, self._detach(self._key(args.get("order_id"))), ""
 
     def _set_route(self, args):
-        vehicle = self._state.vehicles.get(args.get("vehicle_id"))
+        vehicle = self._vehicle(args.get("vehicle_id"))
         stops = args.get("stops")
         if vehicle is None or not isinstance(stops, list):
             return {}, False, "unknown vehicle or bad stops"
@@ -158,7 +162,7 @@ class DispatchEnvironment:
         return {}, True, ""
 
     def _reroute(self, args):
-        vehicle = self._state.vehicles.get(args.get("vehicle_id"))
+        vehicle = self._vehicle(args.get("vehicle_id"))
         if vehicle is None:
             return {}, False, "unknown vehicle"
         vehicle.route = self._nearest_route(vehicle)
@@ -177,12 +181,20 @@ class DispatchEnvironment:
         return {"reason": args.get("reason", "")}, True, "refused"
 
     # -- mutation helpers ---------------------------------------------------
+    @staticmethod
+    def _key(value) -> str | None:
+        return value if isinstance(value, str) else None
+
+    def _vehicle(self, value) -> Vehicle | None:
+        return self._state.vehicles.get(self._key(value))
+
+    def _order(self, value) -> Order | None:
+        return self._state.orders.get(self._key(value))
+
     def _as_node(self, value) -> int | None:
-        try:
-            node = int(value)
-        except (TypeError, ValueError):
+        if isinstance(value, bool) or not isinstance(value, int):
             return None
-        return node if 0 <= node < self._state.network.size else None
+        return value if 0 <= value < self._state.network.size else None
 
     def _detach(self, order_id: str | None) -> bool:
         removed = False
