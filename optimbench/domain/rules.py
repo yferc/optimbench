@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .enums import OrderStatus, ViolationKind
+from .enums import ViolationKind
 from .geometry import arrival_times
 from .models import DispatchState, Vehicle
 

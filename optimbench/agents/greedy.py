@@ -31,6 +31,8 @@ class GreedyDispatcher:
 
     @staticmethod
     def _best_fit(order: dict[str, Any], vehicles: list[dict[str, Any]]) -> dict[str, Any]:
-        headroom = lambda v: v["capacity"] - v["load"]
+        def headroom(vehicle: dict[str, Any]) -> int:
+            return vehicle["capacity"] - vehicle["load"]
+
         fitting = [v for v in vehicles if headroom(v) >= order["demand"]]
         return max(fitting or vehicles, key=headroom)
