@@ -56,4 +56,8 @@ capacity-feasible plan is always time-feasible.
 - The reference is a sweep + nearest-neighbour + 2-opt heuristic, not a proven
   optimum, so `task` measures the gap to a strong baseline rather than a true
   optimality gap; an agent that beats the heuristic simply saturates at 1.0.
+- The invalid-action-spam flag is a soft signal — an agent can dilute its rejection
+  rate with accepted no-ops. It cannot inflate a score (integrity also requires
+  committing and feasibly resolving every wave), so it is a transparency indicator,
+  not a gate.
 - Single problem family (vehicle dispatch); scheduling and packing members are planned.
