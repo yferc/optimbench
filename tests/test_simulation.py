@@ -109,3 +109,15 @@ def test_as_node_rejects_bool_float_and_string():
     env = _fresh()
     for bad in (True, 1.9, "3"):
         assert env.step(ActionType.QUERY_TRAFFIC, {"a": bad, "b": 2})["accepted"] is False
+
+
+def test_random_policy_runs_to_termination():
+    from optimbench.agents import RandomDispatcher
+
+    env = _fresh()
+    agent = RandomDispatcher(seed=0)
+    steps = 0
+    while not env.done and steps < 5000:
+        env.step(*agent.act(env.observation()))
+        steps += 1
+    assert env.done
