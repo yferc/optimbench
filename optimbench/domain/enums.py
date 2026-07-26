@@ -106,6 +106,23 @@ class ViolationType(str, Enum):
     OUT_OF_SERVICE_VEHICLE = "out_of_service_vehicle"
 
 
+class Note(str, Enum):
+    """Human-readable outcome of an action, recorded on the trajectory."""
+
+    NONE = ""
+    UNKNOWN_FILTER = "unknown filter"
+    NO_SUCH_VEHICLE = "no such vehicle"
+    UNKNOWN_VEHICLE = "unknown vehicle"
+    UNKNOWN_ORDER_OR_VEHICLE = "unknown order or vehicle"
+    ORDER_NOT_LIVE = "order not live"
+    VEHICLE_OUT_OF_SERVICE = "vehicle out of service"
+    NODE_OUT_OF_RANGE = "node out of range"
+    STOP_OUT_OF_RANGE = "stop out of range"
+    DISRUPTION_APPLIED = "disruption applied"
+    FINAL_COMMIT = "final commit"
+    REFUSED = "refused"
+
+
 class IntegrityFlag(str, Enum):
     INVALID_ACTION_SPAM = "invalid_action_spam"
     NEVER_COMMITTED = "never_committed"

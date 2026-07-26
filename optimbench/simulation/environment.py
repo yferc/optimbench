@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any
 
 from optimbench.domain import (
@@ -12,6 +13,7 @@ from optimbench.domain import (
     Disruption,
     DisruptionType,
     Field,
+    Note,
     Order,
     OrderFilter,
     OrderStatus,
@@ -27,6 +29,13 @@ from optimbench.domain import (
 _FILTERS = {member.value: member for member in OrderFilter}
 
 
+@dataclass(frozen=True)
+class ActionOutcome:
+    accepted: bool
+    note: Note = Note.NONE
+    result: dict[Field, Any] = field(default_factory=dict)
+
+
 class DispatchEnvironment:
     def __init__(self, max_turns_per_wave: int = 80) -> None:
         self._max_turns_per_wave = max_turns_per_wave
@@ -37,7 +46,7 @@ class DispatchEnvironment:
         self._wave_cursor = 0
         self._done = False
 
-    def reset(self, scenario: Scenario) -> dict[str, Any]:
+    def reset(self, scenario: Scenario) -> dict[Field, Any]:
         self._scenario = scenario
         self._state = scenario.state
         self._trajectory = Trajectory()
@@ -49,17 +58,17 @@ class DispatchEnvironment:
     def tools(self) -> tuple[ToolSpec, ...]:
         return TOOLSET
 
-    def step(self, action: ActionType, args: dict[Arg, Any]) -> dict[str, Any]:
+    def step(self, action: ActionType, args: dict[Arg, Any]) -> dict[Field, Any]:
         if self._state is None:
             raise RuntimeError("reset() must be called before step()")
-        result, accepted, note = self._route_action(action, args)
-        self._trajectory.record(Decision(self._turn, action, args, accepted, note))
+        outcome = self._route_action(action, args)
+        self._trajectory.record(Decision(self._turn, action, args, outcome.accepted, outcome.note))
         self._turn += 1
         if self._turn > self._max_turns_per_wave * (len(self._scenario.disruptions) + 1):
             self._done = True
         return {
-            Field.RESULT: result, Field.ACCEPTED: accepted,
-            Field.NOTE: note, Field.OBSERVATION: self.observation(),
+            Field.RESULT: outcome.result, Field.ACCEPTED: outcome.accepted,
+            Field.NOTE: outcome.note, Field.OBSERVATION: self.observation(),
         }
 
     @property
@@ -79,7 +88,7 @@ class DispatchEnvironment:
         return self._done
 
     # -- observation --------------------------------------------------------
-    def observation(self) -> dict[str, Any]:
+    def observation(self) -> dict[Field, Any]:
         state = self._state
         assigned = state.assigned_ids()
         return {
@@ -95,7 +104,7 @@ class DispatchEnvironment:
         }
 
     # -- action routing -----------------------------------------------------
-    def _route_action(self, action: ActionType, args: dict[Arg, Any]):
+    def _route_action(self, action: ActionType, args: dict[Arg, Any]) -> ActionOutcome:
         return {
             ActionType.LIST_ORDERS: self._list_orders,
             ActionType.GET_VEHICLE: self._get_vehicle,
@@ -109,10 +118,10 @@ class DispatchEnvironment:
             ActionType.REFUSE: self._refuse,
         }[action](args)
 
-    def _list_orders(self, args):
+    def _list_orders(self, args) -> ActionOutcome:
         name = args[Arg.FILTER]
         if name not in _FILTERS:
-            return {}, False, "unknown filter"
+            return ActionOutcome(False, Note.UNKNOWN_FILTER)
         which = _FILTERS[name]
         pool = list(self._state.orders.values())
         assigned = self._state.assigned_ids()
@@ -123,71 +132,75 @@ class DispatchEnvironment:
                 [o for o in pool if o.status is OrderStatus.LIVE and o.id not in assigned],
             OrderFilter.RUSH: [o for o in pool if o.priority is Priority.RUSH],
         }[which]
-        return [self._order_view(o, self._state) for o in selected], True, which.value
+        return ActionOutcome(True, result={Field.UNASSIGNED_ORDERS:
+                                            [self._order_view(o, self._state) for o in selected]})
 
-    def _get_vehicle(self, args):
+    def _get_vehicle(self, args) -> ActionOutcome:
         vehicle_id = args[Arg.VEHICLE_ID]
         if vehicle_id not in self._state.vehicles:
-            return {}, False, "no such vehicle"
-        return self._vehicle_view(self._state.vehicles[vehicle_id], self._state), True, ""
+            return ActionOutcome(False, Note.NO_SUCH_VEHICLE)
+        return ActionOutcome(True, result=self._vehicle_view(self._state.vehicles[vehicle_id], self._state))
 
-    def _query_traffic(self, args):
+    def _query_traffic(self, args) -> ActionOutcome:
         a, b = args[Arg.NODE_A], args[Arg.NODE_B]
         if not (self._in_bounds(a) and self._in_bounds(b)):
-            return {}, False, "node out of range"
-        return {Field.OBSERVED_TIME: float(self._state.network.observed_time[a, b])}, True, ""
+            return ActionOutcome(False, Note.NODE_OUT_OF_RANGE)
+        travel = float(self._state.network.observed_time[a, b])
+        return ActionOutcome(True, result={Field.OBSERVED_TIME: travel})
 
-    def _check_feasibility(self, args):
+    def _check_feasibility(self, args) -> ActionOutcome:
         found = violations(self._state)
-        return {
+        return ActionOutcome(True, result={
             Field.FEASIBLE: not found,
             Field.VIOLATIONS: [{Field.TYPE: v.type.value, Field.REF: v.ref} for v in found],
-        }, True, ""
+        })
 
-    def _assign_order(self, args):
+    def _assign_order(self, args) -> ActionOutcome:
         order_id, vehicle_id = args[Arg.ORDER_ID], args[Arg.VEHICLE_ID]
         if order_id not in self._state.orders or vehicle_id not in self._state.vehicles:
-            return {}, False, "unknown order or vehicle"
+            return ActionOutcome(False, Note.UNKNOWN_ORDER_OR_VEHICLE)
         order, vehicle = self._state.orders[order_id], self._state.vehicles[vehicle_id]
         if order.status is not OrderStatus.LIVE:
-            return {}, False, "order not live"
+            return ActionOutcome(False, Note.ORDER_NOT_LIVE)
         if not vehicle.in_service:
-            return {}, False, "vehicle out of service"
+            return ActionOutcome(False, Note.VEHICLE_OUT_OF_SERVICE)
         self._detach(order_id)
         vehicle.assigned.append(order_id)
-        return {}, True, ""
+        return ActionOutcome(True)
 
-    def _unassign_order(self, args):
-        return {}, self._detach(args[Arg.ORDER_ID]), ""
+    def _unassign_order(self, args) -> ActionOutcome:
+        return ActionOutcome(self._detach(args[Arg.ORDER_ID]))
 
-    def _set_route(self, args):
+    def _set_route(self, args) -> ActionOutcome:
         vehicle_id, stops = args[Arg.VEHICLE_ID], args[Arg.STOPS]
         if vehicle_id not in self._state.vehicles:
-            return {}, False, "unknown vehicle"
+            return ActionOutcome(False, Note.UNKNOWN_VEHICLE)
         if any(not self._in_bounds(node) for node in stops):
-            return {}, False, "stop out of range"
+            return ActionOutcome(False, Note.STOP_OUT_OF_RANGE)
         self._state.vehicles[vehicle_id].route = list(stops)
-        return {}, True, ""
+        return ActionOutcome(True)
 
-    def _reroute(self, args):
+    def _reroute(self, args) -> ActionOutcome:
         vehicle_id = args[Arg.VEHICLE_ID]
         if vehicle_id not in self._state.vehicles:
-            return {}, False, "unknown vehicle"
+            return ActionOutcome(False, Note.UNKNOWN_VEHICLE)
         vehicle = self._state.vehicles[vehicle_id]
         vehicle.route = self._nearest_route(vehicle)
-        return {Field.ROUTE: vehicle.route}, True, ""
+        return ActionOutcome(True, result={Field.ROUTE: vehicle.route})
 
-    def _commit(self, args):
+    def _commit(self, args) -> ActionOutcome:
         if self._wave_cursor < len(self._scenario.disruptions):
             self._apply(self._scenario.disruptions[self._wave_cursor])
             self._wave_cursor += 1
             self._state.wave += 1
-            return {Field.COMMITTED: True, Field.WAVE_ADVANCED: True}, True, "disruption applied"
+            return ActionOutcome(True, Note.DISRUPTION_APPLIED,
+                                 {Field.COMMITTED: True, Field.WAVE_ADVANCED: True})
         self._done = True
-        return {Field.COMMITTED: True, Field.WAVE_ADVANCED: False}, True, "final commit"
+        return ActionOutcome(True, Note.FINAL_COMMIT,
+                             {Field.COMMITTED: True, Field.WAVE_ADVANCED: False})
 
-    def _refuse(self, args):
-        return {Field.REASON: args[Arg.REASON]}, True, "refused"
+    def _refuse(self, args) -> ActionOutcome:
+        return ActionOutcome(True, Note.REFUSED, {Field.REASON: args[Arg.REASON]})
 
     # -- mutation helpers ---------------------------------------------------
     def _in_bounds(self, node: int) -> bool:
