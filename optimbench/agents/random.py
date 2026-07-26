@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from typing import Any
 
-from optimbench.domain import TOOLSET, ActionType, Arg, Field, OrderFilter
+from optimbench.domain import DEPOT, TOOLSET, ActionType, Arg, Field, OrderFilter
 
 _TOOL_ACTIONS = [tool.action for tool in TOOLSET]
 
@@ -50,7 +50,7 @@ class RandomDispatcher:
 
     @staticmethod
     def _nodes(obs: dict[Field, Any]) -> list[int]:
-        seen = {0}
+        seen = {DEPOT}
         seen.update(o[Field.NODE] for o in obs[Field.UNASSIGNED_ORDERS])
         seen.update(node for v in obs[Field.VEHICLES] for node in v[Field.ROUTE])
         return sorted(seen)
@@ -59,5 +59,5 @@ class RandomDispatcher:
         return self._rng.choice(pool) if pool else default
 
     def _route(self, nodes: list[int]) -> list[int]:
-        k = self._rng.randint(1, min(4, len(nodes)))
-        return [0, *self._rng.sample(nodes, k), 0]
+        n_stops = self._rng.randint(1, min(4, len(nodes)))
+        return [DEPOT, *self._rng.sample(nodes, n_stops), DEPOT]

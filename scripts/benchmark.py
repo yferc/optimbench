@@ -37,13 +37,13 @@ def _agents() -> dict[str, AgentFactory]:
         AgentType.RANDOM.value: RandomDispatcher,
         AgentType.GREEDY.value: GreedyDispatcher,
     }
-    model = ROOT / "models" / "assignment_policy.pt"
-    if model.exists() and importlib.util.find_spec("torch") is not None:
+    model_path = ROOT / "models" / "assignment_policy.pt"
+    if model_path.exists() and importlib.util.find_spec("torch") is not None:
         import torch
 
         from optimbench.agents.learned import AssignmentPolicy, LearnedDispatcher
         policy = AssignmentPolicy()
-        policy.load_state_dict(torch.load(model))
+        policy.load_state_dict(torch.load(model_path))
         policy.eval()
         agents[AgentType.LEARNED.value] = lambda: LearnedDispatcher(policy)
     if "OPTIMBENCH_LLM_MODEL" in os.environ:

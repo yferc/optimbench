@@ -62,10 +62,21 @@ class InfoKey(str, Enum):
     BENCHMARK_VERSION = "benchmark_version"
 
 
-# Rollout-state keys the adapter owns. Kept out of the model-visible message stream.
-_ENV = "optimbench_env"
-_COMMITTED = "optimbench_committed"
-_RESULT = "optimbench_result"
+class RowKey(str, Enum):
+    """Dataset column names (the verifiers prompt and metadata columns)."""
+
+    QUESTION = "question"
+    INFO = "info"
+
+
+class StateKey(str, Enum):
+    """Rollout-state keys. ENV / COMMITTED / RESULT are adapter-owned and kept off the model-
+    visible message stream; FINAL_ENV_RESPONSE is the verifiers key that ends a rollout early."""
+
+    ENV = "optimbench_env"
+    COMMITTED = "optimbench_committed"
+    RESULT = "optimbench_result"
+    FINAL_ENV_RESPONSE = "final_env_response"
 
 
 def _message_content(message: Any) -> str:
@@ -81,8 +92,8 @@ def _dataset(seeds: Iterable[int], difficulty: Difficulty) -> Dataset:
         env = DispatchEnvironment()
         first_observation = env.reset(_GEN.generate(seed, difficulty))
         rows.append({
-            "question": render_state(first_observation),
-            "info": json.dumps({
+            RowKey.QUESTION: render_state(first_observation),
+            RowKey.INFO: json.dumps({
                 InfoKey.SEED: int(seed),
                 InfoKey.DIFFICULTY: difficulty.value,
                 InfoKey.BENCHMARK_VERSION: BENCHMARK_VERSION,
@@ -98,9 +109,9 @@ def _new_env(info: dict[str, Any], max_turns_per_wave: int) -> DispatchEnvironme
 
 
 def _verified(state: Any) -> tuple[Any, list[bool]]:
-    if _RESULT not in state:
-        state[_RESULT] = verify_episode(_VERIFIER, state[_ENV], state[_COMMITTED])
-    return state[_RESULT]
+    if StateKey.RESULT not in state:
+        state[StateKey.RESULT] = verify_episode(_VERIFIER, state[StateKey.ENV], state[StateKey.COMMITTED])
+    return state[StateKey.RESULT]
 
 
 async def dispatch_reward(state: Any) -> float:
@@ -136,21 +147,21 @@ class OptimBenchEnv(vf.MultiTurnEnv):
         super().__init__(**kwargs)
 
     async def setup_state(self, state: Any) -> None:
-        state[_ENV] = _new_env(state["info"], self._max_turns_per_wave)
-        state[_COMMITTED] = []
+        state[StateKey.ENV] = _new_env(state[RowKey.INFO], self._max_turns_per_wave)
+        state[StateKey.COMMITTED] = []
         await super().setup_state(state)
 
     async def env_response(self, messages: Any, state: Any, **kwargs: Any) -> Any:
-        env: DispatchEnvironment = state[_ENV]
+        env: DispatchEnvironment = state[StateKey.ENV]
         action, args = parse_tool_call(_message_content(messages[-1]), _NAMES)
         committing = action is ActionType.DISPATCH
         feasible = is_feasible(env.state) if committing else False
         outcome = await asyncio.to_thread(env.step, action, args)
         if committing and outcome[Field.ACCEPTED]:
-            state[_COMMITTED].append(feasible)
+            state[StateKey.COMMITTED].append(feasible)
         reply = [chat_message(Role.USER, render_state(outcome[Field.OBSERVATION]))]
         if env.done:
-            state["final_env_response"] = reply
+            state[StateKey.FINAL_ENV_RESPONSE] = reply
         return reply
 
 
