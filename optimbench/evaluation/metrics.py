@@ -9,6 +9,9 @@ import numpy as np
 
 from optimbench.verification import VerificationResult
 
+_TASK_WEIGHT = 0.7
+_ROBUSTNESS_WEIGHT = 0.3
+
 
 def task_score(result: VerificationResult) -> float:
     if not result.feasible or result.objective == 0.0:
@@ -24,6 +27,19 @@ def robustness_score(feasible_at_each_commit: list[bool]) -> float:
 
 def integrity_score(result: VerificationResult) -> float:
     return 1.0 if result.integrity_ok else 0.0
+
+
+def combined_reward(result: VerificationResult, wave_feasibility: list[bool]) -> float:
+    """Fuse the three scores into one scalar RL reward in [0, 1].
+
+    Integrity is a hard multiplicative gate, not a weighted summand: an episode that never
+    committed, left a disruption unresolved, or spammed invalid actions scores zero no matter
+    how good its dispatch looked, so there is no dishonest way to collect partial credit.
+    Behind that gate, dispatch quality and disruption robustness combine as a fixed weighted
+    sum. This is the signal to train against; the three scores stay separate for reporting.
+    """
+    quality = _TASK_WEIGHT * task_score(result) + _ROBUSTNESS_WEIGHT * robustness_score(wave_feasibility)
+    return integrity_score(result) * quality
 
 
 def iqm(values: list[float]) -> float:
