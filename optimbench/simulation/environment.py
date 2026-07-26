@@ -11,6 +11,7 @@ from optimbench.domain import (
     DispatchState,
     Disruption,
     DisruptionType,
+    Field,
     Order,
     OrderFilter,
     OrderStatus,
@@ -56,7 +57,10 @@ class DispatchEnvironment:
         self._turn += 1
         if self._turn > self._max_turns_per_wave * (len(self._scenario.disruptions) + 1):
             self._done = True
-        return {"result": result, "accepted": accepted, "note": note, "observation": self.observation()}
+        return {
+            Field.RESULT: result, Field.ACCEPTED: accepted,
+            Field.NOTE: note, Field.OBSERVATION: self.observation(),
+        }
 
     @property
     def state(self) -> DispatchState:
@@ -79,13 +83,13 @@ class DispatchEnvironment:
         state = self._state
         assigned = state.assigned_ids()
         return {
-            "wave": state.wave,
-            "waves_total": len(self._scenario.disruptions),
-            "final_wave": self._wave_cursor >= len(self._scenario.disruptions),
-            "feasible": is_feasible(state),
-            "depot": _coord(state, DEPOT),
-            "vehicles": [self._vehicle_view(v, state) for v in state.vehicles.values()],
-            "unassigned_orders": [
+            Field.WAVE: state.wave,
+            Field.WAVES_TOTAL: len(self._scenario.disruptions),
+            Field.FINAL_WAVE: self._wave_cursor >= len(self._scenario.disruptions),
+            Field.FEASIBLE: is_feasible(state),
+            Field.DEPOT: _coord(state, DEPOT),
+            Field.VEHICLES: [self._vehicle_view(v, state) for v in state.vehicles.values()],
+            Field.UNASSIGNED_ORDERS: [
                 self._order_view(o, state) for o in state.live_orders() if o.id not in assigned
             ],
         }
@@ -131,13 +135,13 @@ class DispatchEnvironment:
         a, b = args[Arg.NODE_A], args[Arg.NODE_B]
         if not (self._in_bounds(a) and self._in_bounds(b)):
             return {}, False, "node out of range"
-        return {"observed_time": float(self._state.network.observed_time[a, b])}, True, ""
+        return {Field.OBSERVED_TIME: float(self._state.network.observed_time[a, b])}, True, ""
 
     def _check_feasibility(self, args):
         found = violations(self._state)
         return {
-            "feasible": not found,
-            "violations": [{"type": v.type.value, "ref": v.ref} for v in found],
+            Field.FEASIBLE: not found,
+            Field.VIOLATIONS: [{Field.TYPE: v.type.value, Field.REF: v.ref} for v in found],
         }, True, ""
 
     def _assign_order(self, args):
@@ -171,19 +175,19 @@ class DispatchEnvironment:
             return {}, False, "unknown vehicle"
         vehicle = self._state.vehicles[vehicle_id]
         vehicle.route = self._nearest_route(vehicle)
-        return {"route": vehicle.route}, True, ""
+        return {Field.ROUTE: vehicle.route}, True, ""
 
     def _commit(self, args):
         if self._wave_cursor < len(self._scenario.disruptions):
             self._apply(self._scenario.disruptions[self._wave_cursor])
             self._wave_cursor += 1
             self._state.wave += 1
-            return {"committed": True, "wave_advanced": True}, True, "disruption applied"
+            return {Field.COMMITTED: True, Field.WAVE_ADVANCED: True}, True, "disruption applied"
         self._done = True
-        return {"committed": True, "wave_advanced": False}, True, "final commit"
+        return {Field.COMMITTED: True, Field.WAVE_ADVANCED: False}, True, "final commit"
 
     def _refuse(self, args):
-        return {"reason": args[Arg.REASON]}, True, "refused"
+        return {Field.REASON: args[Arg.REASON]}, True, "refused"
 
     # -- mutation helpers ---------------------------------------------------
     def _in_bounds(self, node: int) -> bool:
@@ -232,21 +236,21 @@ class DispatchEnvironment:
 
     # -- views --------------------------------------------------------------
     @staticmethod
-    def _order_view(order: Order, state: DispatchState) -> dict[str, Any]:
+    def _order_view(order: Order, state: DispatchState) -> dict[Field, Any]:
         return {
-            "id": order.id, "node": order.node, "demand": order.demand,
-            "coord": _coord(state, order.node),
-            "window_open": order.window_open, "window_close": order.window_close,
-            "priority": order.priority.value,
+            Field.ID: order.id, Field.NODE: order.node, Field.DEMAND: order.demand,
+            Field.COORD: _coord(state, order.node),
+            Field.WINDOW_OPEN: order.window_open, Field.WINDOW_CLOSE: order.window_close,
+            Field.PRIORITY: order.priority.value,
         }
 
     @staticmethod
-    def _vehicle_view(vehicle: Vehicle, state: DispatchState) -> dict[str, Any]:
+    def _vehicle_view(vehicle: Vehicle, state: DispatchState) -> dict[Field, Any]:
         return {
-            "id": vehicle.id, "capacity": vehicle.capacity, "in_service": vehicle.in_service,
-            "load": vehicle.load(state.orders), "assigned": list(vehicle.assigned),
-            "route": list(vehicle.route),
-            "centroid": _load_centroid(vehicle, state),
+            Field.ID: vehicle.id, Field.CAPACITY: vehicle.capacity,
+            Field.IN_SERVICE: vehicle.in_service, Field.LOAD: vehicle.load(state.orders),
+            Field.ASSIGNED: list(vehicle.assigned), Field.ROUTE: list(vehicle.route),
+            Field.CENTROID: _load_centroid(vehicle, state),
         }
 
 

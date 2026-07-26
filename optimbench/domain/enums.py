@@ -39,6 +39,47 @@ class ToolCallKey(str, Enum):
     ARGS = "args"
 
 
+class Field(str, Enum):
+    """Keys of the observation, step result, and view dicts. str-valued so
+    json.dumps still emits plain string keys for an LLM agent."""
+
+    # step result envelope
+    RESULT = "result"
+    ACCEPTED = "accepted"
+    NOTE = "note"
+    OBSERVATION = "observation"
+    # observation
+    WAVE = "wave"
+    WAVES_TOTAL = "waves_total"
+    FINAL_WAVE = "final_wave"
+    FEASIBLE = "feasible"
+    DEPOT = "depot"
+    VEHICLES = "vehicles"
+    UNASSIGNED_ORDERS = "unassigned_orders"
+    # order and vehicle views
+    ID = "id"
+    NODE = "node"
+    DEMAND = "demand"
+    COORD = "coord"
+    WINDOW_OPEN = "window_open"
+    WINDOW_CLOSE = "window_close"
+    PRIORITY = "priority"
+    CAPACITY = "capacity"
+    IN_SERVICE = "in_service"
+    LOAD = "load"
+    ASSIGNED = "assigned"
+    ROUTE = "route"
+    CENTROID = "centroid"
+    # tool results
+    OBSERVED_TIME = "observed_time"
+    VIOLATIONS = "violations"
+    TYPE = "type"
+    REF = "ref"
+    COMMITTED = "committed"
+    WAVE_ADVANCED = "wave_advanced"
+    REASON = "reason"
+
+
 class Arg(str, Enum):
     ORDER_ID = "order_id"
     VEHICLE_ID = "vehicle_id"
