@@ -9,12 +9,13 @@ from enum import Enum
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 
-from optimbench.domain import TOOLSET, ActionType, ToolCallKey, ToolSpec
+from optimbench.domain import TOOLSET, ActionType, Arg, Field, ToolCallKey, ToolSpec
 
 _RETRIES = 5
 _BACKOFF = 2.0
 _RETRYABLE = frozenset({429, 500, 502, 503, 504})
 _NO_KEY = "none"  # local servers (Ollama) accept any placeholder
+_ARG_VALUES = frozenset(arg.value for arg in Arg)
 
 
 class Role(str, Enum):
@@ -22,7 +23,16 @@ class Role(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
 
-_SYSTEM = """You are a vehicle-dispatch controller working one tool call per turn.
+
+# The example call is derived from the enums, not hardcoded, so the schema the LLM is
+# told to emit cannot drift from the keys the parser reads.
+_EXAMPLE_CALL = json.dumps({
+    ToolCallKey.ACTION.value: ActionType.ASSIGN_ORDER.value,
+    ToolCallKey.ARGS.value: {Arg.ORDER_ID.value: "ord_3", Arg.VEHICLE_ID.value: "veh_1"},
+})
+
+_SYSTEM = (
+    """You are a vehicle-dispatch controller working one tool call per turn.
 
 Each wave, follow this procedure:
   1. Assign every unassigned order to an in-service vehicle that still has spare
@@ -34,7 +44,8 @@ Repeat for each disruption wave, including the final one (you must dispatch it t
 
 The latest STATE is authoritative; your recent actions are shown for context.
 Reply with ONLY a JSON object naming one tool call, e.g.
-{"action": "assign_order", "args": {"order_id": "ord_3", "vehicle_id": "veh_1"}}. No prose."""
+""" + _EXAMPLE_CALL + ". No prose."
+)
 
 _MEMORY_TURNS = 6
 
@@ -83,7 +94,7 @@ class LLMAgent:
     def reset(self) -> None:
         self._history: list[dict[str, str]] = []
 
-    def act(self, observation: dict[str, Any]) -> tuple[ActionType, dict[str, Any]]:
+    def act(self, observation: dict[Field, Any]) -> tuple[ActionType, dict[Arg, Any]]:
         user = _message(Role.USER, self._render(observation))
         reply = self._client.chat([_message(Role.SYSTEM, _SYSTEM), *self._history, user])
         self._remember(user, reply)
@@ -93,14 +104,14 @@ class LLMAgent:
         self._history = [*self._history, user, _message(Role.ASSISTANT, reply)]
         self._history = self._history[-2 * _MEMORY_TURNS :]
 
-    def _render(self, observation: dict[str, Any]) -> str:
+    def _render(self, observation: dict[Field, Any]) -> str:
         lines = "\n".join(
             f"  {tool.action.value}({', '.join(a.value for a in tool.args)}): {tool.summary}"
             for tool in self._tools
         )
         return f"TOOLS:\n{lines}\n\nSTATE:\n{json.dumps(observation, separators=(',', ':'))}"
 
-    def _parse(self, reply: str) -> tuple[ActionType, dict[str, Any]]:
+    def _parse(self, reply: str) -> tuple[ActionType, dict[Arg, Any]]:
         match = re.search(r"\{.*\}", reply, re.DOTALL)
         if match is None:
             return ActionType.CHECK_FEASIBILITY, {}
@@ -111,13 +122,21 @@ class LLMAgent:
         if ToolCallKey.ACTION not in call or call[ToolCallKey.ACTION] not in self._names:
             return ActionType.CHECK_FEASIBILITY, {}
         action = self._names[call[ToolCallKey.ACTION]]
-        args = call[ToolCallKey.ARGS] if ToolCallKey.ARGS in call else {}
-        return action, args if isinstance(args, dict) else {}
+        raw = call[ToolCallKey.ARGS] if ToolCallKey.ARGS in call else {}
+        return action, _to_args(raw)
 
 
 def _message(role: Role, content: str) -> dict[str, str]:
     # "role"/"content" are the OpenAI chat wire-format keys.
     return {"role": role.value, "content": content}
+
+
+def _to_args(raw: Any) -> dict[Arg, Any]:
+    # The reply is untrusted, so keep only keys that name a real tool argument and
+    # re-key them to the Arg enum the environment and every other agent use.
+    if not isinstance(raw, dict):
+        return {}
+    return {Arg(key): value for key, value in raw.items() if key in _ARG_VALUES}
 
 
 def openai_compatible_agent() -> LLMAgent:

@@ -16,10 +16,10 @@ The workflow is uv-based. Create the environment and install the extras you need
 
 ```bash
 uv venv
-uv pip install -e ".[dev,media,rl]"
+uv pip install -e ".[dev,rl]"
 ```
 
-The extras are: `dev` (pytest and ruff, ruff pinned to 0.16.0), `media` (imageio, imageio-ffmpeg, pygame for rendering), `rl` (torch, optional), and `solver` (ortools). Install only what a task needs.
+The extras are: `dev` (pytest and ruff, ruff pinned to 0.16.0) and `rl` (torch, only to train or run the learned agent). The rendering deps (imageio, imageio-ffmpeg, pygame) are base dependencies, not an extra, so a bare install can always run the scripts. Install only the extras a task needs.
 
 Run the tests headless. pygame requires a video driver, so set `SDL_VIDEODRIVER=dummy` (this is exactly what CI does):
 

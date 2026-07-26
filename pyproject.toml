@@ -16,12 +16,14 @@ keywords = ["evaluation", "reinforcement-learning", "optimization", "agents", "v
 dependencies = ["numpy>=1.23", "imageio>=2.31", "imageio-ffmpeg>=0.4", "pygame>=2.5"]
 
 [project.optional-dependencies]
-solver = ["ortools>=9.7"]
 rl = ["torch>=2.0"]                        # only to train or run the learned agent
 dev = ["pytest>=7.0", "ruff==0.16.0"]
 
 [tool.setuptools.packages.find]
 include = ["optimbench*"]
+
+[tool.setuptools.package-data]
+optimbench = ["py.typed"]
 
 [tool.ruff]
 line-length = 100
