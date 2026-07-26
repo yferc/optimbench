@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from typing import Any
 
-from optimbench.domain import ActionType, OrderFilter
+from optimbench.domain import ActionType, Arg, Field, OrderFilter
 
 
 class RandomDispatcher:
@@ -18,39 +18,39 @@ class RandomDispatcher:
     def reset(self) -> None:
         self._rng = random.Random(self._seed)
 
-    def act(self, observation: dict[str, Any]) -> tuple[ActionType, dict[str, Any]]:
+    def act(self, observation: dict[Field, Any]) -> tuple[ActionType, dict[Arg, Any]]:
         action = self._rng.choice(list(ActionType))
         return action, self._args(action, observation)
 
-    def _args(self, action: ActionType, obs: dict[str, Any]) -> dict[str, Any]:
-        vehicle_ids = [v["id"] for v in obs["vehicles"]]
-        assigned_ids = [o for v in obs["vehicles"] for o in v["assigned"]]
-        order_ids = [o["id"] for o in obs["unassigned_orders"]] + assigned_ids
+    def _args(self, action: ActionType, obs: dict[Field, Any]) -> dict[Arg, Any]:
+        vehicle_ids = [v[Field.ID] for v in obs[Field.VEHICLES]]
+        assigned_ids = [o for v in obs[Field.VEHICLES] for o in v[Field.ASSIGNED]]
+        order_ids = [o[Field.ID] for o in obs[Field.UNASSIGNED_ORDERS]] + assigned_ids
         nodes = self._nodes(obs)
 
         if action is ActionType.LIST_ORDERS:
-            return {"filter": self._rng.choice(list(OrderFilter)).value}
+            return {Arg.FILTER: self._rng.choice(list(OrderFilter)).value}
         if action is ActionType.GET_VEHICLE:
-            return {"vehicle_id": self._pick(vehicle_ids)}
+            return {Arg.VEHICLE_ID: self._pick(vehicle_ids)}
         if action is ActionType.QUERY_TRAFFIC:
-            return {"a": self._pick(nodes, 0), "b": self._pick(nodes, 0)}
+            return {Arg.NODE_A: self._pick(nodes, 0), Arg.NODE_B: self._pick(nodes, 0)}
         if action is ActionType.ASSIGN_ORDER:
-            return {"order_id": self._pick(order_ids), "vehicle_id": self._pick(vehicle_ids)}
+            return {Arg.ORDER_ID: self._pick(order_ids), Arg.VEHICLE_ID: self._pick(vehicle_ids)}
         if action is ActionType.UNASSIGN_ORDER:
-            return {"order_id": self._pick(assigned_ids)}
+            return {Arg.ORDER_ID: self._pick(assigned_ids)}
         if action is ActionType.SET_ROUTE:
-            return {"vehicle_id": self._pick(vehicle_ids), "stops": self._route(nodes)}
+            return {Arg.VEHICLE_ID: self._pick(vehicle_ids), Arg.STOPS: self._route(nodes)}
         if action is ActionType.REROUTE:
-            return {"vehicle_id": self._pick(vehicle_ids)}
+            return {Arg.VEHICLE_ID: self._pick(vehicle_ids)}
         if action is ActionType.REFUSE:
-            return {"reason": "random"}
+            return {Arg.REASON: "random"}
         return {}  # CHECK_FEASIBILITY, DISPATCH
 
     @staticmethod
-    def _nodes(obs: dict[str, Any]) -> list[int]:
+    def _nodes(obs: dict[Field, Any]) -> list[int]:
         seen = {0}
-        seen.update(o["node"] for o in obs["unassigned_orders"])
-        seen.update(node for v in obs["vehicles"] for node in v["route"])
+        seen.update(o[Field.NODE] for o in obs[Field.UNASSIGNED_ORDERS])
+        seen.update(node for v in obs[Field.VEHICLES] for node in v[Field.ROUTE])
         return sorted(seen)
 
     def _pick(self, pool: list, default: Any = None) -> Any:

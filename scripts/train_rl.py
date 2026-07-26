@@ -19,7 +19,7 @@ import torch
 
 from optimbench.agents import GreedyDispatcher
 from optimbench.agents.learned import AssignmentPolicy, LearnedDispatcher
-from optimbench.domain import ActionType, Difficulty, is_feasible
+from optimbench.domain import ActionType, Difficulty, Field, is_feasible
 from optimbench.evaluation import task_score
 from optimbench.generation import DispatchScenarioGenerator
 from optimbench.simulation import DispatchEnvironment
@@ -39,7 +39,7 @@ def rollout(scenario, agent) -> float:
     while not env.done:
         action, args = agent.act(env.observation())
         feasible = is_feasible(env.state) if action is ActionType.DISPATCH else False
-        if env.step(action, args)["accepted"] and action is ActionType.DISPATCH:
+        if env.step(action, args)[Field.ACCEPTED] and action is ActionType.DISPATCH:
             committed.append(feasible)
     waves = len(scenario.disruptions) + 1
     result = VERIFIER.verify(env.state, env.trajectory, waves, sum(committed[:waves]))

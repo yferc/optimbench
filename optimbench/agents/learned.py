@@ -5,7 +5,7 @@ from typing import Any
 import torch
 from torch import nn
 
-from optimbench.domain import ActionType, Priority
+from optimbench.domain import ActionType, Arg, Field, Priority
 
 _ORDER_FEATURES = 4
 _VEHICLE_FEATURES = 4
@@ -41,26 +41,26 @@ class LearnedDispatcher:
         self._rerouted: set[str] = set()
         self.log_probs: list[torch.Tensor] = []
 
-    def act(self, observation: dict[str, Any]) -> tuple[ActionType, dict[str, Any]]:
-        vehicles = [v for v in observation["vehicles"] if v["in_service"]]
-        unassigned = observation["unassigned_orders"]
+    def act(self, observation: dict[Field, Any]) -> tuple[ActionType, dict[Arg, Any]]:
+        vehicles = [v for v in observation[Field.VEHICLES] if v[Field.IN_SERVICE]]
+        unassigned = observation[Field.UNASSIGNED_ORDERS]
 
         if unassigned and vehicles:
             self._rerouted.clear()
             return self._assign(unassigned, vehicles)
 
-        pending = [v for v in vehicles if v["assigned"] and v["id"] not in self._rerouted]
+        pending = [v for v in vehicles if v[Field.ASSIGNED] and v[Field.ID] not in self._rerouted]
         if pending:
-            self._rerouted.add(pending[0]["id"])
-            return ActionType.REROUTE, {"vehicle_id": pending[0]["id"]}
+            self._rerouted.add(pending[0][Field.ID])
+            return ActionType.REROUTE, {Arg.VEHICLE_ID: pending[0][Field.ID]}
 
         return ActionType.DISPATCH, {}
 
-    def _assign(self, unassigned, vehicles) -> tuple[ActionType, dict[str, Any]]:
+    def _assign(self, unassigned, vehicles) -> tuple[ActionType, dict[Arg, Any]]:
         fitting = self._feasible_pairs(unassigned, vehicles)
         scores = self._policy(torch.stack([features for _, _, features in fitting]))
         order, vehicle, _ = fitting[self._choose(scores)]
-        return ActionType.ASSIGN_ORDER, {"order_id": order["id"], "vehicle_id": vehicle["id"]}
+        return ActionType.ASSIGN_ORDER, {Arg.ORDER_ID: order[Field.ID], Arg.VEHICLE_ID: vehicle[Field.ID]}
 
     def _choose(self, scores: torch.Tensor) -> int:
         if not self._training:
@@ -74,22 +74,22 @@ class LearnedDispatcher:
     def _feasible_pairs(unassigned, vehicles):
         pairs = []
         for order in unassigned:
-            fitting = [v for v in vehicles if v["capacity"] - v["load"] >= order["demand"]]
+            fitting = [v for v in vehicles if v[Field.CAPACITY] - v[Field.LOAD] >= order[Field.DEMAND]]
             room = fitting if fitting else vehicles
             for vehicle in room:
                 pairs.append((order, vehicle, _pair_features(order, vehicle)))
         return pairs
 
 
-def _pair_features(order: dict[str, Any], vehicle: dict[str, Any]) -> torch.Tensor:
-    capacity = max(vehicle["capacity"], 1)
+def _pair_features(order: dict[Field, Any], vehicle: dict[Field, Any]) -> torch.Tensor:
+    capacity = max(vehicle[Field.CAPACITY], 1)
     return torch.tensor([
-        order["coord"][0] / _WORLD,
-        order["coord"][1] / _WORLD,
-        order["demand"] / capacity,
-        1.0 if order["priority"] == Priority.RUSH.value else 0.0,
-        (capacity - vehicle["load"]) / capacity,
-        vehicle["centroid"][0] / _WORLD,
-        vehicle["centroid"][1] / _WORLD,
-        1.0 if vehicle["load"] == 0 else 0.0,
+        order[Field.COORD][0] / _WORLD,
+        order[Field.COORD][1] / _WORLD,
+        order[Field.DEMAND] / capacity,
+        1.0 if order[Field.PRIORITY] == Priority.RUSH.value else 0.0,
+        (capacity - vehicle[Field.LOAD]) / capacity,
+        vehicle[Field.CENTROID][0] / _WORLD,
+        vehicle[Field.CENTROID][1] / _WORLD,
+        1.0 if vehicle[Field.LOAD] == 0 else 0.0,
     ], dtype=torch.float32)

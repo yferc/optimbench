@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from optimbench.domain import ActionType
+from optimbench.domain import ActionType, Arg, Field
 
 
 class GreedyDispatcher:
@@ -12,27 +12,27 @@ class GreedyDispatcher:
     def reset(self) -> None:
         self._rerouted: set[str] = set()
 
-    def act(self, observation: dict[str, Any]) -> tuple[ActionType, dict[str, Any]]:
-        vehicles = [v for v in observation["vehicles"] if v["in_service"]]
-        unassigned = observation["unassigned_orders"]
+    def act(self, observation: dict[Field, Any]) -> tuple[ActionType, dict[Arg, Any]]:
+        vehicles = [v for v in observation[Field.VEHICLES] if v[Field.IN_SERVICE]]
+        unassigned = observation[Field.UNASSIGNED_ORDERS]
 
         if unassigned and vehicles:
             self._rerouted.clear()
             order = unassigned[0]
             vehicle = self._best_fit(order, vehicles)
-            return ActionType.ASSIGN_ORDER, {"order_id": order["id"], "vehicle_id": vehicle["id"]}
+            return ActionType.ASSIGN_ORDER, {Arg.ORDER_ID: order[Field.ID], Arg.VEHICLE_ID: vehicle[Field.ID]}
 
-        pending = [v for v in vehicles if v["assigned"] and v["id"] not in self._rerouted]
+        pending = [v for v in vehicles if v[Field.ASSIGNED] and v[Field.ID] not in self._rerouted]
         if pending:
-            self._rerouted.add(pending[0]["id"])
-            return ActionType.REROUTE, {"vehicle_id": pending[0]["id"]}
+            self._rerouted.add(pending[0][Field.ID])
+            return ActionType.REROUTE, {Arg.VEHICLE_ID: pending[0][Field.ID]}
 
         return ActionType.DISPATCH, {}
 
     @staticmethod
-    def _best_fit(order: dict[str, Any], vehicles: list[dict[str, Any]]) -> dict[str, Any]:
-        def headroom(vehicle: dict[str, Any]) -> int:
-            return vehicle["capacity"] - vehicle["load"]
+    def _best_fit(order: dict[Field, Any], vehicles: list[dict[Field, Any]]) -> dict[Field, Any]:
+        def headroom(vehicle: dict[Field, Any]) -> int:
+            return vehicle[Field.CAPACITY] - vehicle[Field.LOAD]
 
-        fitting = [v for v in vehicles if headroom(v) >= order["demand"]]
-        return max(fitting or vehicles, key=headroom)
+        fitting = [v for v in vehicles if headroom(v) >= order[Field.DEMAND]]
+        return max(fitting if fitting else vehicles, key=headroom)

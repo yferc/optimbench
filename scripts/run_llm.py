@@ -22,7 +22,7 @@ import argparse
 import logging
 
 from optimbench.agents import openai_compatible_agent
-from optimbench.domain import ActionType, Difficulty, is_feasible
+from optimbench.domain import ActionType, Difficulty, Field, is_feasible
 from optimbench.evaluation import task_score
 from optimbench.generation import DispatchScenarioGenerator
 from optimbench.simulation import DispatchEnvironment
@@ -41,7 +41,7 @@ def run_episode(agent, scenario, max_turns: int):
     while not env.done:
         action, args = agent.act(env.observation())
         feasible = is_feasible(env.state) if action is ActionType.DISPATCH else False
-        if env.step(action, args)["accepted"] and action is ActionType.DISPATCH:
+        if env.step(action, args)[Field.ACCEPTED] and action is ActionType.DISPATCH:
             committed.append(feasible)
     waves = len(scenario.disruptions) + 1
     return VERIFIER.verify(env.state, env.trajectory, waves, sum(committed[:waves]))

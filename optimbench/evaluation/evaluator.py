@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from optimbench.agents import Agent
-from optimbench.domain import ActionType, Difficulty, is_feasible
+from optimbench.domain import ActionType, Difficulty, Field, is_feasible
 from optimbench.evaluation.metrics import (
     MetricSummary,
     integrity_score,
@@ -80,7 +80,7 @@ class Evaluator:
         while not env.done:
             action, args = agent.act(env.observation())
             feasible = is_feasible(env.state) if action is ActionType.DISPATCH else False
-            if env.step(action, args)["accepted"] and action is ActionType.DISPATCH:
+            if env.step(action, args)[Field.ACCEPTED] and action is ActionType.DISPATCH:
                 committed_feasibility.append(feasible)
 
         waves = len(scenario.disruptions) + 1
