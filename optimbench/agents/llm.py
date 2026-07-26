@@ -11,8 +11,9 @@ from urllib.error import HTTPError, URLError
 
 from optimbench.domain import TOOLSET, ActionType, Arg, Field, ToolCallKey, ToolSpec
 
-_RETRIES = 5
+_RETRIES = 8
 _BACKOFF = 2.0
+_MAX_BACKOFF = 45.0
 _RETRYABLE = frozenset({429, 500, 502, 503, 504})
 _NO_KEY = "none"  # local servers (Ollama) accept any placeholder
 _USER_AGENT = "optimbench"
@@ -62,6 +63,16 @@ class ChatClient(Protocol):
     def chat(self, messages: list[dict[str, str]]) -> str: ...
 
 
+def _retry_delay(error: HTTPError, attempt: int) -> float:
+    # honor the provider's Retry-After on a rate limit, else exponential backoff, both capped
+    headers = error.headers
+    if headers is not None and "Retry-After" in headers:
+        value = headers["Retry-After"]
+        if value.replace(".", "", 1).isdigit():
+            return min(float(value), _MAX_BACKOFF)
+    return min(_BACKOFF * 2**attempt, _MAX_BACKOFF)
+
+
 class OpenAICompatibleClient:
     """Works with any OpenAI-compatible /chat/completions endpoint:
     Groq, Gemini, Ollama, OpenRouter, x.ai, OpenAI."""
@@ -91,10 +102,11 @@ class OpenAICompatibleClient:
             except HTTPError as error:
                 if error.code not in _RETRYABLE or attempt == _RETRIES - 1:
                     raise
+                time.sleep(_retry_delay(error, attempt))
             except URLError:
                 if attempt == _RETRIES - 1:
                     raise
-            time.sleep(_BACKOFF * 2**attempt)
+                time.sleep(min(_BACKOFF * 2**attempt, _MAX_BACKOFF))
         raise RuntimeError("unreachable")
 
 
