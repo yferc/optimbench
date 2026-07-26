@@ -10,6 +10,7 @@ is set (see scripts/run_llm.py). Example:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import logging
 import os
 from pathlib import Path
@@ -25,19 +26,16 @@ log = logging.getLogger("optimbench")
 def _agents() -> dict[str, object]:
     agents: dict[str, object] = {AgentType.GREEDY.value: GreedyDispatcher}
     model = ROOT / "models" / "assignment_policy.pt"
-    if model.exists():
-        try:
-            import torch
+    if model.exists() and importlib.util.find_spec("torch") is not None:
+        import torch
 
-            from optimbench.agents.learned import AssignmentPolicy, LearnedDispatcher
-            policy = AssignmentPolicy()
-            policy.load_state_dict(torch.load(model))
-            policy.eval()
-            agents[AgentType.LEARNED.value] = lambda: LearnedDispatcher(policy)
-        except ImportError:
-            pass
-    if os.environ.get("OPTIMBENCH_LLM_BASE_URL"):
-        agents[os.environ.get("OPTIMBENCH_LLM_MODEL", AgentType.LLM.value)] = openai_compatible_agent
+        from optimbench.agents.learned import AssignmentPolicy, LearnedDispatcher
+        policy = AssignmentPolicy()
+        policy.load_state_dict(torch.load(model))
+        policy.eval()
+        agents[AgentType.LEARNED.value] = lambda: LearnedDispatcher(policy)
+    if "OPTIMBENCH_LLM_MODEL" in os.environ:
+        agents[os.environ["OPTIMBENCH_LLM_MODEL"]] = openai_compatible_agent
     return agents
 
 

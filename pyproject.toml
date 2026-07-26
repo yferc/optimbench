@@ -25,3 +25,7 @@ include = ["optimbench*"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+# SIM401 suggests dict.get(); the project standard forbids .get() (see CLAUDE.md).
+ignore = ["SIM401"]

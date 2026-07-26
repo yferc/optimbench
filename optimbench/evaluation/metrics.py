@@ -8,7 +8,7 @@ from optimbench.verification import VerificationResult
 
 
 def task_score(result: VerificationResult) -> float:
-    if not result.feasible or not result.objective or not result.reference:
+    if not result.feasible or result.objective == 0.0:
         return 0.0
     return float(min(1.0, result.reference / result.objective))
 

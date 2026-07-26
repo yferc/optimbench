@@ -34,6 +34,11 @@ class ActionType(str, Enum):
     REFUSE = "refuse"
 
 
+class ToolCallKey(str, Enum):
+    ACTION = "action"
+    ARGS = "args"
+
+
 class Arg(str, Enum):
     ORDER_ID = "order_id"
     VEHICLE_ID = "vehicle_id"

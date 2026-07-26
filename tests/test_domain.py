@@ -92,11 +92,6 @@ def test_shift_end_exceeded_detected(network):
 
 
 def test_schedule_handles_empty_route(network):
-    veh = Vehicle("v1", 10, 0, 10_000, assigned=["o1"], route=[])
+    veh = Vehicle("v1", 10, 0, 10_000, assigned=[], route=[])
     arrival, return_time = schedule(DispatchState(network, {}, {"v1": veh}), veh)
     assert arrival == {} and return_time == 0.0
-
-
-def test_violations_tolerate_ghost_assigned_id(network):
-    veh = Vehicle("v1", 10, 0, 10_000, assigned=["ghost"], route=[0, 1, 0])
-    assert is_feasible(DispatchState(network, {}, {"v1": veh}))

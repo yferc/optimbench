@@ -35,7 +35,7 @@ class Vehicle:
     route: list[int] = field(default_factory=list)
 
     def load(self, orders: dict[str, Order]) -> int:
-        return sum(orders[o].demand for o in self.assigned if o in orders)
+        return sum(orders[o].demand for o in self.assigned)
 
 
 @dataclass(frozen=True, eq=False)

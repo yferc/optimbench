@@ -37,7 +37,9 @@ def schedule(state: DispatchState, vehicle: Vehicle) -> tuple[dict[int, float], 
         clock += state.network.true_time[previous, node]
         if node not in arrival:
             arrival[node] = clock
-        clock = max(clock, open_at.get(node, clock)) + service_at.get(node, 0.0)
+        window_open = open_at[node] if node in open_at else clock
+        service = service_at[node] if node in service_at else 0.0
+        clock = max(clock, window_open) + service
         previous = node
     return arrival, clock
 
@@ -89,13 +91,15 @@ def _route_out_of_bounds(state: DispatchState, vehicle: Vehicle) -> bool:
 
 
 def _assigned_orders(state: DispatchState, vehicle: Vehicle) -> list[Order]:
-    return [state.orders[o] for o in vehicle.assigned if o in state.orders]
+    return [state.orders[o] for o in vehicle.assigned]
 
 
 def _stop_timing(state: DispatchState, vehicle: Vehicle):
     service_at: dict[int, float] = {}
     open_at: dict[int, float] = {}
     for order in _assigned_orders(state, vehicle):
-        service_at[order.node] = service_at.get(order.node, 0.0) + order.service_time
-        open_at[order.node] = max(open_at.get(order.node, 0.0), order.window_open)
+        prior_service = service_at[order.node] if order.node in service_at else 0.0
+        prior_open = open_at[order.node] if order.node in open_at else 0.0
+        service_at[order.node] = prior_service + order.service_time
+        open_at[order.node] = max(prior_open, order.window_open)
     return service_at, open_at

@@ -74,7 +74,8 @@ class LearnedDispatcher:
     def _feasible_pairs(unassigned, vehicles):
         pairs = []
         for order in unassigned:
-            room = [v for v in vehicles if v["capacity"] - v["load"] >= order["demand"]] or vehicles
+            fitting = [v for v in vehicles if v["capacity"] - v["load"] >= order["demand"]]
+            room = fitting if fitting else vehicles
             for vehicle in room:
                 pairs.append((order, vehicle, _pair_features(order, vehicle)))
         return pairs

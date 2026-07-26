@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from optimbench.domain import ActionType, Arg
+from optimbench.domain.enums import ActionType, Arg
 
 
 @dataclass(frozen=True)

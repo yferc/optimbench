@@ -8,8 +8,7 @@ import urllib.request
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 
-from optimbench.domain import ActionType
-from optimbench.simulation import TOOLSET, ToolSpec
+from optimbench.domain import TOOLSET, ActionType, ToolCallKey, ToolSpec
 
 _RETRIES = 5
 _BACKOFF = 2.0
@@ -98,10 +97,10 @@ class LLMAgent:
             call = json.loads(match.group())
         except json.JSONDecodeError:
             return ActionType.CHECK_FEASIBILITY, {}
-        action = self._names.get(call.get("action"))
-        if action is None:
+        if ToolCallKey.ACTION not in call or call[ToolCallKey.ACTION] not in self._names:
             return ActionType.CHECK_FEASIBILITY, {}
-        args = call.get("args")
+        action = self._names[call[ToolCallKey.ACTION]]
+        args = call[ToolCallKey.ARGS] if ToolCallKey.ARGS in call else {}
         return action, args if isinstance(args, dict) else {}
 
 

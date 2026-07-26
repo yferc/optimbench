@@ -4,6 +4,7 @@ from typing import Any
 
 from optimbench.domain import (
     DEPOT,
+    TOOLSET,
     ActionType,
     Arg,
     Decision,
@@ -15,12 +16,12 @@ from optimbench.domain import (
     OrderStatus,
     Priority,
     Scenario,
+    ToolSpec,
     Trajectory,
     Vehicle,
     is_feasible,
     violations,
 )
-from optimbench.simulation.tools import TOOLSET, ToolSpec
 
 _FILTERS = {member.value: member for member in OrderFilter}
 
@@ -50,7 +51,7 @@ class DispatchEnvironment:
     def step(self, action: ActionType, args: dict[Arg, Any]) -> dict[str, Any]:
         if self._state is None:
             raise RuntimeError("reset() must be called before step()")
-        result, accepted, note = self._dispatch_action(action, args)
+        result, accepted, note = self._route_action(action, args)
         self._trajectory.record(Decision(self._turn, action, args, accepted, note))
         self._turn += 1
         if self._turn > self._max_turns_per_wave * (len(self._scenario.disruptions) + 1):
@@ -89,8 +90,8 @@ class DispatchEnvironment:
             ],
         }
 
-    # -- action dispatch ----------------------------------------------------
-    def _dispatch_action(self, action: ActionType, args: dict[Arg, Any]):
+    # -- action routing -----------------------------------------------------
+    def _route_action(self, action: ActionType, args: dict[Arg, Any]):
         return {
             ActionType.LIST_ORDERS: self._list_orders,
             ActionType.GET_VEHICLE: self._get_vehicle,
@@ -130,7 +131,7 @@ class DispatchEnvironment:
         a, b = args[Arg.NODE_A], args[Arg.NODE_B]
         if not (self._in_bounds(a) and self._in_bounds(b)):
             return {}, False, "node out of range"
-        return {"true_time": float(self._state.network.true_time[a, b])}, True, ""
+        return {"observed_time": float(self._state.network.observed_time[a, b])}, True, ""
 
     def _check_feasibility(self, args):
         found = violations(self._state)
@@ -186,7 +187,7 @@ class DispatchEnvironment:
 
     # -- mutation helpers ---------------------------------------------------
     def _in_bounds(self, node: int) -> bool:
-        return 0 <= node < self._state.network.size
+        return isinstance(node, int) and not isinstance(node, bool) and 0 <= node < self._state.network.size
 
     def _detach(self, order_id: str) -> bool:
         removed = False
@@ -254,7 +255,7 @@ def _coord(state: DispatchState, node: int) -> list[float]:
 
 
 def _load_centroid(vehicle: Vehicle, state: DispatchState) -> list[float]:
-    nodes = [state.orders[o].node for o in vehicle.assigned if o in state.orders]
+    nodes = [state.orders[o].node for o in vehicle.assigned]
     if not nodes:
         return _coord(state, DEPOT)
     points = [state.network.coordinates[node] for node in nodes]
