@@ -79,6 +79,9 @@ class Field(str, Enum):
     COMMITTED = "committed"
     WAVE_ADVANCED = "wave_advanced"
     REASON = "reason"
+    # episode ending: terminated is the final commit, truncated is the turn-cap cutoff
+    TERMINATED = "terminated"
+    TRUNCATED = "truncated"
 
 
 class Arg(str, Enum):

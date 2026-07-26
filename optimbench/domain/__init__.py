@@ -19,8 +19,10 @@ from optimbench.domain.rules import Violation, is_feasible, schedule, violations
 from optimbench.domain.scenario import Disruption, Scenario
 from optimbench.domain.tools import TOOLSET, ToolSpec
 from optimbench.domain.trajectory import Decision, Trajectory
+from optimbench.domain.version import BENCHMARK_VERSION
 
 __all__ = [
+    "BENCHMARK_VERSION",
     "DEPOT",
     "TOOLSET",
     "ActionType",

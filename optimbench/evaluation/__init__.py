@@ -6,6 +6,8 @@ from optimbench.evaluation.metrics import (
            robustness_score,
            task_score,
 )
+from optimbench.evaluation.splits import TEST_SEEDS, TRAIN_SEEDS, VAL_SEEDS
 
-__all__ = ["EvaluationReport", "Evaluator", "MetricSummary",
+__all__ = ["TEST_SEEDS", "TRAIN_SEEDS", "VAL_SEEDS",
+           "EvaluationReport", "Evaluator", "MetricSummary",
            "integrity_score", "iqm", "robustness_score", "task_score"]

@@ -16,8 +16,8 @@ import os
 from pathlib import Path
 
 from optimbench.agents import AgentType, GreedyDispatcher, openai_compatible_agent
-from optimbench.domain import Difficulty
-from optimbench.evaluation import Evaluator
+from optimbench.domain import BENCHMARK_VERSION, Difficulty
+from optimbench.evaluation import TEST_SEEDS, Evaluator
 
 ROOT = Path(__file__).resolve().parent.parent
 log = logging.getLogger("optimbench")
@@ -46,11 +46,14 @@ def main() -> None:
     args = parser.parse_args()
 
     evaluator = Evaluator()
+    seeds = list(TEST_SEEDS)[: args.seeds]
     scores = {
-        name: {d: evaluator.evaluate(factory, d, range(args.seeds)).task.mean for d in Difficulty}
+        name: {d: evaluator.evaluate(factory, d, seeds).task.mean for d in Difficulty}
         for name, factory in _agents().items()
     }
 
+    log.info("benchmark v%s · task score on %d held-out test seeds (higher is better)",
+             BENCHMARK_VERSION, len(seeds))
     header = f"| {'agent':<14} | " + " | ".join(d.value for d in Difficulty) + " |"
     log.info(header)
     log.info("|%s|", "-" * (len(header) - 2))

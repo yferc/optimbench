@@ -7,7 +7,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from optimbench.agents import Agent
-from optimbench.domain import ActionType, Difficulty, Field, is_feasible
+from optimbench.domain import BENCHMARK_VERSION, ActionType, Difficulty, Field, is_feasible
 from optimbench.evaluation.metrics import (
     MetricSummary,
     integrity_score,
@@ -27,6 +27,7 @@ class EvaluationReport:
     task: MetricSummary
     robustness: MetricSummary
     integrity: MetricSummary
+    version: str = BENCHMARK_VERSION
 
     def format(self) -> str:
         def line(name: str, summary: MetricSummary) -> str:
@@ -34,7 +35,7 @@ class EvaluationReport:
                     f"  95% CI [{summary.ci[0]:.3f}, {summary.ci[1]:.3f}]")
 
         return (
-            f"{self.difficulty.value} · {self.episodes} episodes\n"
+            f"{self.difficulty.value} · {self.episodes} episodes · benchmark v{self.version}\n"
             f"  feasibility {self.feasibility_rate:.2%}\n"
             f"{line('task', self.task)}\n"
             f"{line('robustness', self.robustness)}\n"

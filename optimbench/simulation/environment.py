@@ -42,9 +42,11 @@ class DispatchEnvironment:
 
     reset(scenario) returns the first observation. step(action, args) applies one tool
     call and returns a dict keyed by the Field enum: the result, whether it was accepted,
-    an explanatory note, and the new observation. The dispatch action commits the current
-    wave and applies the next disruption; read actions return information and mutation
-    actions edit the plan. The environment holds no RNG, so a scenario replays identically.
+    an explanatory note, the new observation, and the terminated and truncated flags. The
+    dispatch action commits the current wave and applies the next disruption; read actions
+    return information and mutation actions edit the plan. Terminated marks the final
+    commit; truncated marks the per-wave turn cap. The environment holds no RNG, so a
+    scenario replays identically.
     """
 
     def __init__(self, max_turns_per_wave: int = 80) -> None:
@@ -55,6 +57,7 @@ class DispatchEnvironment:
         self._turn = 0
         self._wave_cursor = 0
         self._done = False
+        self._truncated = False
 
     def reset(self, scenario: Scenario) -> dict[Field, Any]:
         self._scenario = scenario
@@ -63,6 +66,7 @@ class DispatchEnvironment:
         self._turn = 0
         self._wave_cursor = 0
         self._done = False
+        self._truncated = False
         return self.observation()
 
     def tools(self) -> tuple[ToolSpec, ...]:
@@ -74,11 +78,13 @@ class DispatchEnvironment:
         outcome = self._route_action(action, args)
         self._trajectory.record(Decision(self._turn, action, args, outcome.accepted, outcome.note))
         self._turn += 1
-        if self._turn > self._max_turns_per_wave * (len(self._scenario.disruptions) + 1):
+        if not self._done and self._turn > self._max_turns_per_wave * (len(self._scenario.disruptions) + 1):
             self._done = True
+            self._truncated = True
         return {
             Field.RESULT: outcome.result, Field.ACCEPTED: outcome.accepted,
             Field.NOTE: outcome.note, Field.OBSERVATION: self.observation(),
+            Field.TERMINATED: self.terminated, Field.TRUNCATED: self._truncated,
         }
 
     @property
@@ -96,6 +102,16 @@ class DispatchEnvironment:
     @property
     def done(self) -> bool:
         return self._done
+
+    @property
+    def terminated(self) -> bool:
+        """True when the episode ended by committing the final wave (a real MDP terminal)."""
+        return self._done and not self._truncated
+
+    @property
+    def truncated(self) -> bool:
+        """True when the episode ended by hitting the per-wave turn cap, not by finishing."""
+        return self._truncated
 
     # -- observation --------------------------------------------------------
     def observation(self) -> dict[Field, Any]:

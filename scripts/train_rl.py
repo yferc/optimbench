@@ -20,7 +20,7 @@ import torch
 from optimbench.agents import GreedyDispatcher
 from optimbench.agents.learned import AssignmentPolicy, LearnedDispatcher
 from optimbench.domain import ActionType, Difficulty, Field, is_feasible
-from optimbench.evaluation import task_score
+from optimbench.evaluation import TRAIN_SEEDS, VAL_SEEDS, task_score
 from optimbench.generation import DispatchScenarioGenerator
 from optimbench.simulation import DispatchEnvironment
 from optimbench.verification import DispatchVerifier
@@ -53,7 +53,8 @@ def _mean_task(policy: AssignmentPolicy, difficulty: Difficulty, seeds: range) -
 
 
 def evaluate(policy: AssignmentPolicy, difficulties: list[Difficulty]) -> dict[Difficulty, float]:
-    return {d: _mean_task(policy, d, range(50)) for d in difficulties}
+    # Select checkpoints on the validation split, never on the reported test seeds.
+    return {d: _mean_task(policy, d, VAL_SEEDS) for d in difficulties}
 
 
 def main() -> None:
@@ -75,7 +76,7 @@ def main() -> None:
 
     for episode in range(1, args.episodes + 1):
         difficulty = rng.choice(train_diffs)
-        seed = rng.randrange(10_000, 1_000_000)
+        seed = rng.randrange(TRAIN_SEEDS.start, TRAIN_SEEDS.stop)
         agent = LearnedDispatcher(policy, training=True)
         reward = rollout(GEN.generate(seed, difficulty), agent)
         baseline = rollout(GEN.generate(seed, difficulty), GreedyDispatcher())
