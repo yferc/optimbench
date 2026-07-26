@@ -13,3 +13,6 @@ dist/
 docs/media/*
 !docs/media/demo.gif
 !docs/media/demo.mp4
+
+models/
+data/

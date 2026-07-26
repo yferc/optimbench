@@ -16,6 +16,8 @@ is versioned separately by `BENCHMARK_VERSION` (see `optimbench/domain/version.p
   to 1.1, so v1.0 and v1.1 numbers are not comparable.
 
 ### Added
+- `scripts/export_trajectories.py`: export expert dispatch trajectories (greedy by default) as
+  JSONL (prompt, completion) pairs from successful episodes, for supervised warm-start before RL.
 - A Prime Intellect hub / verifiers adapter (`optimbench/hub/`, the `hub` extra, and the
   `environments/optimbench/` package) exposing OptimBench behind `load_environment()` so it
   runs under `prime eval run` and prime-rl. The deterministic verifier maps to a verifiers

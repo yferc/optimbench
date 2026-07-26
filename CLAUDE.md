@@ -40,6 +40,7 @@ uv run python scripts/run_episode.py --agent random   # roll out one episode, ex
 uv run python scripts/benchmark.py                     # print the agent comparison table
 uv run python scripts/train_rl.py --episodes 3000      # train the policy, writes models/assignment_policy.pt
 uv run python scripts/run_llm.py --difficulty easy     # evaluate an LLM agent through the tool API
+uv run python scripts/export_trajectories.py           # dump expert trajectories as JSONL for SFT
 ```
 
 `run_episode.py --agent learned` needs the `rl` extra and a trained model at `models/assignment_policy.pt`. The `llm` agent needs the `OPTIMBENCH_LLM_BASE_URL`, `OPTIMBENCH_LLM_API_KEY`, and `OPTIMBENCH_LLM_MODEL` environment variables (see the docstring in `scripts/run_llm.py`).
