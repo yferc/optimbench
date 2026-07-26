@@ -7,6 +7,14 @@ is versioned separately by `BENCHMARK_VERSION` (see `optimbench/domain/version.p
 
 ## [Unreleased]
 
+### Changed
+- Benchmark v1.1: the REROUTE auto-router now sequences stops on the observed (possibly stale)
+  travel times the agent can see, not the true times, so it no longer hands the agent an oracle
+  the stale-traffic dimension is meant to deny it. Scores shift slightly down and the effect
+  grows with difficulty (where more of the traffic matrix is stale). The reference solve still
+  uses true times, since it is the agent-independent oracle denominator. BENCHMARK_VERSION bumped
+  to 1.1, so v1.0 and v1.1 numbers are not comparable.
+
 ### Added
 - A Prime Intellect hub / verifiers adapter (`optimbench/hub/`, the `hub` extra, and the
   `environments/optimbench/` package) exposing OptimBench behind `load_environment()` so it

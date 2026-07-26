@@ -27,7 +27,7 @@ but generously bounded in v1 (see Limitations).
 ## Baselines
 Greedy dispatcher (best-fit assignment + nearest-neighbour routing, re-planning
 after each disruption), 50 scenarios per difficulty: feasibility 100% across
-easy/medium/hard; task 0.83 / 0.75 / 0.66 (easy/medium/hard); robustness 1.00;
+easy/medium/hard; task 0.83 / 0.74 / 0.65 (easy/medium/hard); robustness 1.00;
 integrity 1.00. Greedy is always feasible and resolves every disruption, but its
 non-geometric assignment leaves substantial task headroom that widens with
 difficulty, the room a smarter agent has to improve.
@@ -105,7 +105,8 @@ numpy and torch versions from `pyproject.toml` when reporting.
 
 ## Versioning and maintenance
 The scoring is versioned by `BENCHMARK_VERSION` (`optimbench/domain/version.py`), currently
-`1.0`. Any change to the feasibility gate, the disruption model, the reference solver, or a
+`1.1`. Any change to the feasibility gate, the disruption model, the reference solver, or a
 score formula bumps it, which makes old and new numbers non-comparable by construction rather
-than by footnote. The planned v2 change is binding time windows (see Limitations). Issues and
-questions: https://github.com/yferc/optimbench/issues.
+than by footnote. v1.1 made the REROUTE auto-router sequence on observed (stale) travel times
+rather than true ones, so it no longer bypasses the stale-traffic dimension. The planned v2
+change is binding time windows (see Limitations). Issues: https://github.com/yferc/optimbench/issues.

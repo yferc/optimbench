@@ -117,15 +117,15 @@ python scripts/run_llm.py --difficulty easy --seeds 5
 
 ## Results
 
-Task score (IQM) on 50 held-out test seeds per difficulty (benchmark v1.0), higher is better.
+Task score (IQM) on 50 held-out test seeds per difficulty (benchmark v1.1), higher is better.
 The reference solve sits at 1.0 by definition. Full table with robustness and integrity in
 [`papers/leaderboard.md`](papers/leaderboard.md); reproduce with `python scripts/benchmark.py --seeds 50 --out papers/leaderboard.md`.
 
 | agent   | easy  | medium | hard  |
 |---------|-------|--------|-------|
 | random  | 0.000 | 0.000  | 0.000 |
-| greedy  | 0.826 | 0.746  | 0.650 |
-| learned | 0.934 | 0.859  | 0.804 |
+| greedy  | 0.825 | 0.739  | 0.648 |
+| learned | 0.933 | 0.856  | 0.792 |
 
 Random cannot assemble a feasible plan by chance, so it scores zero on every axis. The learned
 REINFORCE policy closes most of the gap greedy leaves against the reference, and the headroom

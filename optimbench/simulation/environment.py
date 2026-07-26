@@ -273,8 +273,10 @@ class DispatchEnvironment:
             self._state.orders[order.id] = order.with_status(OrderStatus.CANCELLED)
 
     def _nearest_route(self, vehicle: Vehicle) -> list[int]:
-        targets = list(dict.fromkeys(self._state.orders[o].node for o in vehicle.assigned))
-        times = self._state.network.true_time
+        targets = list(dict.fromkeys(self._state.orders[order_id].node for order_id in vehicle.assigned))
+        # sequence on the observed (possibly stale) times the agent can see, not the true times:
+        # the auto-router must not hand the agent an oracle the stale-traffic dimension denies it
+        times = self._state.network.observed_time
         route = [DEPOT]
         while targets:
             here = route[-1]
