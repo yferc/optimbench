@@ -1,5 +1,5 @@
 from optimbench.agents import LLMAgent
-from optimbench.domain import ActionType, Difficulty
+from optimbench.domain import ActionType, Difficulty, Field
 from optimbench.generation import DispatchScenarioGenerator
 from optimbench.simulation import DispatchEnvironment
 
@@ -23,14 +23,24 @@ def test_parses_json_action_from_noisy_reply():
     assert action is ActionType.LIST_ORDERS and args == {"filter": "live"}
 
 
-def test_unparseable_reply_falls_back_to_a_safe_noop():
+def test_unparseable_reply_maps_to_invalid():
     agent = LLMAgent(_ScriptedClient(["no json here"]))
-    assert agent.act({})[0] is ActionType.CHECK_FEASIBILITY
+    assert agent.act({})[0] is ActionType.INVALID
 
 
-def test_unknown_action_falls_back_to_a_safe_noop():
+def test_unknown_action_maps_to_invalid():
     agent = LLMAgent(_ScriptedClient(['{"action": "teleport", "args": {}}']))
-    assert agent.act({})[0] is ActionType.CHECK_FEASIBILITY
+    assert agent.act({})[0] is ActionType.INVALID
+
+
+def test_missing_required_arg_is_rejected_not_crashing():
+    # assign_order without vehicle_id used to KeyError inside env.step and abort the whole run.
+    env = DispatchEnvironment()
+    env.reset(GEN.generate(0, Difficulty.EASY))
+    agent = LLMAgent(_ScriptedClient(['{"action": "assign_order", "args": {"order_id": "ord_0"}}']))
+    action, args = agent.act(env.observation())
+    assert action is ActionType.INVALID
+    assert env.step(action, args)[Field.ACCEPTED] is False
 
 
 def test_llm_agent_drives_an_episode_to_completion():

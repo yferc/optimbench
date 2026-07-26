@@ -3,7 +3,9 @@ from __future__ import annotations
 import random
 from typing import Any
 
-from optimbench.domain import ActionType, Arg, Field, OrderFilter
+from optimbench.domain import TOOLSET, ActionType, Arg, Field, OrderFilter
+
+_TOOL_ACTIONS = [tool.action for tool in TOOLSET]
 
 
 class RandomDispatcher:
@@ -19,7 +21,7 @@ class RandomDispatcher:
         self._rng = random.Random(self._seed)
 
     def act(self, observation: dict[Field, Any]) -> tuple[ActionType, dict[Arg, Any]]:
-        action = self._rng.choice(list(ActionType))
+        action = self._rng.choice(_TOOL_ACTIONS)
         return action, self._args(action, observation)
 
     def _args(self, action: ActionType, obs: dict[Field, Any]) -> dict[Arg, Any]:

@@ -32,6 +32,10 @@ class ActionType(str, Enum):
     REROUTE = "reroute"
     DISPATCH = "dispatch"
     REFUSE = "refuse"
+    # not an offered tool: the marker a malformed or incomplete model reply parses to, so the
+    # environment rejects it explicitly (and it counts toward invalid-action spam) instead of
+    # crashing on a missing argument. Kept out of TOOLSET.
+    INVALID = "invalid"
 
 
 class ToolCallKey(str, Enum):
@@ -124,6 +128,7 @@ class Note(str, Enum):
     DISRUPTION_APPLIED = "disruption applied"
     FINAL_COMMIT = "final commit"
     REFUSED = "refused"
+    MALFORMED_TOOL_CALL = "malformed tool call"
 
 
 class IntegrityFlag(str, Enum):

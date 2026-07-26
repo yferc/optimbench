@@ -97,23 +97,37 @@ def render_state(observation: dict[Field, Any], tools: tuple[ToolSpec, ...] = TO
     return f"TOOLS:\n{lines}\n\nSTATE:\n{json.dumps(observation, separators=(',', ':'))}"
 
 
-def parse_tool_call(reply: str, names: dict[str, ActionType]) -> tuple[ActionType, dict[Arg, Any]]:
+_REQUIRED_ARGS: dict[ActionType, tuple[Arg, ...]] = {tool.action: tool.args for tool in TOOLSET}
+
+
+def parse_tool_call(reply: str, action_by_name: dict[str, ActionType]) -> tuple[ActionType, dict[Arg, Any]]:
     """Parse one JSON tool call out of an untrusted model reply, re-keying args to the Arg enum.
 
-    Falls back to a harmless read (check_feasibility) when the reply is not a valid, known call.
+    This is the sanitizer boundary for untrusted model output. Anything that is not a complete,
+    known tool call (no JSON, unparseable JSON, unknown action, or a required argument missing or
+    misshapen) maps to ActionType.INVALID, which the environment rejects and records as a rejected
+    decision. It is never crashed on downstream, nor silently rewritten to a benign accepted read.
     """
     match = re.search(r"\{.*\}", reply, re.DOTALL)
     if match is None:
-        return ActionType.CHECK_FEASIBILITY, {}
+        return ActionType.INVALID, {}
     try:
         call = json.loads(match.group())
     except json.JSONDecodeError:
-        return ActionType.CHECK_FEASIBILITY, {}
-    if ToolCallKey.ACTION not in call or call[ToolCallKey.ACTION] not in names:
-        return ActionType.CHECK_FEASIBILITY, {}
-    action = names[call[ToolCallKey.ACTION]]
-    raw = call[ToolCallKey.ARGS] if ToolCallKey.ARGS in call else {}
-    return action, _to_args(raw)
+        return ActionType.INVALID, {}
+    if ToolCallKey.ACTION not in call or call[ToolCallKey.ACTION] not in action_by_name:
+        return ActionType.INVALID, {}
+    action = action_by_name[call[ToolCallKey.ACTION]]
+    args = _to_args(call[ToolCallKey.ARGS] if ToolCallKey.ARGS in call else {})
+    if not _complete_call(action, args):
+        return ActionType.INVALID, {}
+    return action, args
+
+
+def _complete_call(action: ActionType, args: dict[Arg, Any]) -> bool:
+    if any(required not in args for required in _REQUIRED_ARGS[action]):
+        return False
+    return Arg.STOPS not in args or isinstance(args[Arg.STOPS], list)
 
 
 class LLMAgent:

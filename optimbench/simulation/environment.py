@@ -147,7 +147,11 @@ class DispatchEnvironment:
             ActionType.REROUTE: self._reroute,
             ActionType.DISPATCH: self._commit,
             ActionType.REFUSE: self._refuse,
+            ActionType.INVALID: self._invalid,
         }[action](args)
+
+    def _invalid(self, args) -> ActionOutcome:
+        return ActionOutcome(False, Note.MALFORMED_TOOL_CALL)
 
     def _list_orders(self, args) -> ActionOutcome:
         name = args[Arg.FILTER]
