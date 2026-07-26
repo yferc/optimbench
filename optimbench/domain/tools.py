@@ -1,3 +1,4 @@
+"""The agent tool schema: the action set and the arguments each action accepts."""
 from __future__ import annotations
 
 from dataclasses import dataclass

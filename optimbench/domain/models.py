@@ -1,3 +1,6 @@
+"""Core value objects for the dispatch domain: orders, vehicles, the road network, and
+the mutable dispatch state the agent edits through the environment.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace

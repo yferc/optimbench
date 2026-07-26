@@ -1,3 +1,6 @@
+"""Batch evaluation: roll an agent across seeded scenarios and summarise the three
+scores with IQM and bootstrap confidence intervals.
+"""
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
@@ -40,6 +43,8 @@ class EvaluationReport:
 
 
 class Evaluator:
+    """Runs an agent over seeded scenarios and aggregates the per-episode scores."""
+
     def __init__(
         self,
         generator: DispatchScenarioGenerator | None = None,
@@ -51,6 +56,11 @@ class Evaluator:
     def evaluate(
         self, make_agent: Callable[[], Agent], difficulty: Difficulty, seeds: Iterable[int]
     ) -> EvaluationReport:
+        """Roll make_agent() across the given seeds at one difficulty and summarise the run.
+
+        Returns an EvaluationReport with the feasibility rate and, for each of the task,
+        robustness, and integrity scores, its mean, IQM, and 95% bootstrap CI.
+        """
         tasks: list[float] = []
         robustness: list[float] = []
         integrity: list[float] = []

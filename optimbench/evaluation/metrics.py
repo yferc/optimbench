@@ -1,3 +1,6 @@
+"""Scoring and aggregation: the three per-episode scores, plus the IQM and bootstrap
+confidence interval used to summarise a score across seeds.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass

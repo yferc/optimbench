@@ -1,3 +1,6 @@
+"""Difficulty presets: the knobs (fleet size, capacity, order count, time-window slack,
+disruption count) that define the easy, medium, and hard scenario distributions.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass

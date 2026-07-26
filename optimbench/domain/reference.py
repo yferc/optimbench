@@ -1,3 +1,7 @@
+"""The agent-independent reference solve: sweep assignment, then nearest-neighbour
+routing refined with 2-opt. Its cost is the denominator of the task score, so it must
+never depend on the agent's own plan.
+"""
 from __future__ import annotations
 
 import math

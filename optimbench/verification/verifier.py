@@ -1,3 +1,6 @@
+"""The deterministic verifier: it reads only the final state and trajectory, never the
+simulation, and turns them into the terminal scores.
+"""
 from __future__ import annotations
 
 from optimbench.domain import (
@@ -15,6 +18,13 @@ _SPAM_MIN_DECISIONS = 25
 
 
 class DispatchVerifier:
+    """Deterministic terminal scoring from the final state and trajectory.
+
+    verify() returns feasibility, the objective (total fleet cost), the agent-independent
+    reference cost that the task score is measured against, and integrity flags: never
+    committed, disruptions left unresolved, or invalid-action spam.
+    """
+
     def verify(
         self,
         state: DispatchState,

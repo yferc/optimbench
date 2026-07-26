@@ -1,3 +1,4 @@
+"""The dispatch environment: a gym-style loop over the agent tool API."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -37,6 +38,15 @@ class ActionOutcome:
 
 
 class DispatchEnvironment:
+    """Gym-style environment exposing the dispatch tool API.
+
+    reset(scenario) returns the first observation. step(action, args) applies one tool
+    call and returns a dict keyed by the Field enum: the result, whether it was accepted,
+    an explanatory note, and the new observation. The dispatch action commits the current
+    wave and applies the next disruption; read actions return information and mutation
+    actions edit the plan. The environment holds no RNG, so a scenario replays identically.
+    """
+
     def __init__(self, max_turns_per_wave: int = 80) -> None:
         self._max_turns_per_wave = max_turns_per_wave
         self._scenario: Scenario | None = None

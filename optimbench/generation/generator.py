@@ -1,3 +1,6 @@
+"""Procedural, feasibility-guaranteed scenario generation. Every scenario is seeded and
+admits at least one feasible dispatch, so an infeasible result is always the agent's doing.
+"""
 from __future__ import annotations
 
 import numpy as np
