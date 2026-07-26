@@ -11,6 +11,7 @@ targets exactly the gap greedy leaves against the sweep reference.
 from __future__ import annotations
 
 import argparse
+import logging
 import random
 from pathlib import Path
 
@@ -27,6 +28,7 @@ from optimbench.verification import DispatchVerifier
 ROOT = Path(__file__).resolve().parent.parent
 GEN = DispatchScenarioGenerator()
 VERIFIER = DispatchVerifier()
+log = logging.getLogger("optimbench")
 
 
 def rollout(scenario, agent) -> float:
@@ -55,14 +57,15 @@ def evaluate(policy: AssignmentPolicy, difficulties: list[Difficulty]) -> dict[D
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser()
     parser.add_argument("--episodes", type=int, default=3000)
-    parser.add_argument("--difficulty", default="all", choices=["all", *(d.value for d in Difficulty)])
+    parser.add_argument("--difficulty", choices=[d.value for d in Difficulty], default=None)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--out", default="models/assignment_policy.pt")
     args = parser.parse_args()
 
-    train_diffs = list(Difficulty) if args.difficulty == "all" else [Difficulty(args.difficulty)]
+    train_diffs = [Difficulty(args.difficulty)] if args.difficulty else list(Difficulty)
     rng = random.Random(0)
     policy = AssignmentPolicy()
     optimizer = torch.optim.Adam(policy.parameters(), lr=args.lr)
@@ -90,9 +93,9 @@ def main() -> None:
             if mean > best:
                 best, marker = mean, "  *saved"
                 torch.save(policy.state_dict(), out)
-            print(f"ep {episode:4d}  learned: {report}  (mean {mean:.3f}){marker}")
+            log.info("ep %4d  learned: %s  (mean %.3f)%s", episode, report, mean, marker)
 
-    print(f"best mean {best:.3f} saved to {out}")
+    log.info("best mean %.3f saved to %s", best, out)
 
 
 if __name__ == "__main__":

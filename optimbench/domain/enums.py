@@ -14,6 +14,13 @@ class Priority(str, Enum):
     RUSH = "rush"
 
 
+class OrderFilter(str, Enum):
+    LIVE = "live"
+    UNASSIGNED = "unassigned"
+    RUSH = "rush"
+    ALL = "all"
+
+
 class ActionType(str, Enum):
     LIST_ORDERS = "list_orders"
     GET_VEHICLE = "get_vehicle"
@@ -27,13 +34,13 @@ class ActionType(str, Enum):
     REFUSE = "refuse"
 
 
-class DisruptionKind(str, Enum):
+class DisruptionType(str, Enum):
     BREAKDOWN = "breakdown"
     RUSH_ORDER = "rush_order"
     CANCELLATION = "cancellation"
 
 
-class ViolationKind(str, Enum):
+class ViolationType(str, Enum):
     CAPACITY_EXCEEDED = "capacity_exceeded"
     TIME_WINDOW_MISSED = "time_window_missed"
     SHIFT_END_EXCEEDED = "shift_end_exceeded"

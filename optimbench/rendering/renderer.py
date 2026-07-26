@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pygame
 
-from ..domain import DEPOT, DispatchState, OrderStatus, Priority, fleet_cost, is_feasible
+from optimbench.domain import DEPOT, DispatchState, OrderStatus, Priority, fleet_cost, is_feasible
 
 _BG = (13, 19, 32)
 _ARENA = (26, 34, 52)

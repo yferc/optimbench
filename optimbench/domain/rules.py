@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .enums import ViolationKind
-from .models import DEPOT, DispatchState, Order, Vehicle
+from optimbench.domain.enums import ViolationType
+from optimbench.domain.models import DEPOT, DispatchState, Order, Vehicle
 
 
 @dataclass(frozen=True)
 class Violation:
-    kind: ViolationKind
+    type: ViolationType
     ref: str
 
 
@@ -26,7 +26,7 @@ def is_feasible(state: DispatchState) -> bool:
 
 def schedule(state: DispatchState, vehicle: Vehicle) -> tuple[dict[int, float], float]:
     """Arrival time at each stop and the return-to-depot time, with travel,
-    wait-until-window_open and service time — the executable timeline."""
+    wait-until-window_open and service time. This is the executable timeline."""
     if len(vehicle.route) < 2:
         return {}, 0.0
     service_at, open_at = _stop_timing(state, vehicle)
@@ -45,7 +45,7 @@ def schedule(state: DispatchState, vehicle: Vehicle) -> tuple[dict[int, float], 
 def _unassigned_live_orders(state: DispatchState) -> list[Violation]:
     assigned = state.assigned_ids()
     return [
-        Violation(ViolationKind.UNASSIGNED_LIVE_ORDER, order.id)
+        Violation(ViolationType.UNASSIGNED_LIVE_ORDER, order.id)
         for order in state.live_orders()
         if order.id not in assigned
     ]
@@ -55,27 +55,27 @@ def _vehicle_violations(state: DispatchState, vehicle: Vehicle) -> list[Violatio
     if not vehicle.assigned:
         return []
     if not vehicle.in_service:
-        return [Violation(ViolationKind.OUT_OF_SERVICE_VEHICLE, vehicle.id)]
+        return [Violation(ViolationType.OUT_OF_SERVICE_VEHICLE, vehicle.id)]
     if _route_out_of_bounds(state, vehicle):
-        return [Violation(ViolationKind.ROUTE_MISSING_STOP, vehicle.id)]
+        return [Violation(ViolationType.ROUTE_MISSING_STOP, vehicle.id)]
 
     found: list[Violation] = []
     if vehicle.load(state.orders) > vehicle.capacity:
-        found.append(Violation(ViolationKind.CAPACITY_EXCEEDED, vehicle.id))
+        found.append(Violation(ViolationType.CAPACITY_EXCEEDED, vehicle.id))
     if not _depot_anchored(vehicle):
-        return found + [Violation(ViolationKind.ROUTE_NOT_DEPOT_ANCHORED, vehicle.id)]
+        return found + [Violation(ViolationType.ROUTE_NOT_DEPOT_ANCHORED, vehicle.id)]
 
     route_nodes = set(vehicle.route)
     if any(order.node not in route_nodes for order in _assigned_orders(state, vehicle)):
-        found.append(Violation(ViolationKind.ROUTE_MISSING_STOP, vehicle.id))
+        found.append(Violation(ViolationType.ROUTE_MISSING_STOP, vehicle.id))
         return found
 
     arrival, return_time = schedule(state, vehicle)
     for order in _assigned_orders(state, vehicle):
         if arrival[order.node] > order.window_close:
-            found.append(Violation(ViolationKind.TIME_WINDOW_MISSED, order.id))
+            found.append(Violation(ViolationType.TIME_WINDOW_MISSED, order.id))
     if return_time > vehicle.shift_end:
-        found.append(Violation(ViolationKind.SHIFT_END_EXCEEDED, vehicle.id))
+        found.append(Violation(ViolationType.SHIFT_END_EXCEEDED, vehicle.id))
     return found
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..domain import Difficulty
+from optimbench.domain import Difficulty
 
 
 @dataclass(frozen=True)
@@ -10,12 +10,12 @@ class DifficultySpec:
     nodes: int
     vehicles: int
     orders: int
-    capacity: int
-    slack_ratio: float
-    waves: int
+    vehicle_capacity: int
+    slack_ratio: float          # fleet capacity over total demand; higher is roomier, so easier
+    disruption_waves: int
     cancelled_distractors: int
-    out_of_service: int
-    stale_fraction: float
+    offline_vehicles: int
+    stale_fraction: float       # share of the observed travel-time matrix that is inaccurate
 
 
 DIFFICULTY: dict[Difficulty, DifficultySpec] = {

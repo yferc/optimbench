@@ -8,3 +8,8 @@ dist/
 .DS_Store
 
 .idea/
+.venv/
+
+docs/media/*
+!docs/media/demo.gif
+!docs/media/demo.mp4

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..domain import (
+from optimbench.domain import (
     DispatchState,
     IntegrityFlag,
     Trajectory,
@@ -8,7 +8,7 @@ from ..domain import (
     reference_cost,
     violations,
 )
-from .result import VerificationResult
+from optimbench.verification.result import VerificationResult
 
 _SPAM_RATE = 0.5
 _SPAM_MIN_DECISIONS = 25
@@ -26,7 +26,7 @@ class DispatchVerifier:
         flags = self._integrity_flags(trajectory, expected_waves, resolved_waves)
         return VerificationResult(
             feasible=not found,
-            violations=[v.kind for v in found],
+            violations=[v.type for v in found],
             objective=fleet_cost(state),
             reference=reference_cost(state),
             integrity_ok=not flags,

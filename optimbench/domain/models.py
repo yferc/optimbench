@@ -4,7 +4,7 @@ from dataclasses import dataclass, field, replace
 
 import numpy as np
 
-from .enums import OrderStatus, Priority
+from optimbench.domain.enums import OrderStatus, Priority
 
 DEPOT = 0
 

@@ -5,7 +5,7 @@ from typing import Any
 import torch
 from torch import nn
 
-from ..domain import ActionType
+from optimbench.domain import ActionType, Priority
 
 _ORDER_FEATURES = 4
 _VEHICLE_FEATURES = 4
@@ -86,7 +86,7 @@ def _pair_features(order: dict[str, Any], vehicle: dict[str, Any]) -> torch.Tens
         order["coord"][0] / _WORLD,
         order["coord"][1] / _WORLD,
         order["demand"] / capacity,
-        1.0 if order["priority"] == "rush" else 0.0,
+        1.0 if order["priority"] == Priority.RUSH.value else 0.0,
         (capacity - vehicle["load"]) / capacity,
         vehicle["centroid"][0] / _WORLD,
         vehicle["centroid"][1] / _WORLD,

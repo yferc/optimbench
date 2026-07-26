@@ -6,7 +6,7 @@ from optimbench.domain import (
     Order,
     RoadNetwork,
     Vehicle,
-    ViolationKind,
+    ViolationType,
     euclidean_time_matrix,
     is_feasible,
     route_time,
@@ -45,50 +45,50 @@ def test_feasible_state_has_no_violations(network):
 def test_capacity_violation_detected(network):
     orders = {"o1": _order("o1", 1, demand=99)}
     veh = Vehicle("v1", 10, 0, 10_000, assigned=["o1"], route=[0, 1, 0])
-    kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
-    assert ViolationKind.CAPACITY_EXCEEDED in kinds
+    violation_types = {v.type for v in violations(DispatchState(network, orders, {"v1": veh}))}
+    assert ViolationType.CAPACITY_EXCEEDED in violation_types
 
 
 def test_unassigned_live_order_detected(network):
     orders = {"o1": _order("o1", 1)}
     veh = Vehicle("v1", 10, 0, 10_000)
-    kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
-    assert ViolationKind.UNASSIGNED_LIVE_ORDER in kinds
+    violation_types = {v.type for v in violations(DispatchState(network, orders, {"v1": veh}))}
+    assert ViolationType.UNASSIGNED_LIVE_ORDER in violation_types
 
 
 def test_missing_route_stop_detected(network):
     orders = {"o1": _order("o1", 1)}
     veh = Vehicle("v1", 10, 0, 10_000, assigned=["o1"], route=[0, 2, 0])
-    kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
-    assert ViolationKind.ROUTE_MISSING_STOP in kinds
+    violation_types = {v.type for v in violations(DispatchState(network, orders, {"v1": veh}))}
+    assert ViolationType.ROUTE_MISSING_STOP in violation_types
 
 
 def test_time_window_violation_detected(network):
     orders = {"o1": _order("o1", 1, close=1)}
     veh = Vehicle("v1", 10, 0, 10_000, assigned=["o1"], route=[0, 1, 0])
-    kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
-    assert ViolationKind.TIME_WINDOW_MISSED in kinds
+    violation_types = {v.type for v in violations(DispatchState(network, orders, {"v1": veh}))}
+    assert ViolationType.TIME_WINDOW_MISSED in violation_types
 
 
 def test_depot_anchoring_required(network):
     orders = {"o1": _order("o1", 1)}
     veh = Vehicle("v1", 10, 0, 10_000, assigned=["o1"], route=[1, 2])
-    kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
-    assert ViolationKind.ROUTE_NOT_DEPOT_ANCHORED in kinds
+    violation_types = {v.type for v in violations(DispatchState(network, orders, {"v1": veh}))}
+    assert ViolationType.ROUTE_NOT_DEPOT_ANCHORED in violation_types
 
 
 def test_out_of_range_route_flagged_without_crashing(network):
     orders = {"o1": _order("o1", 1)}
     veh = Vehicle("v1", 10, 0, 10_000, assigned=["o1"], route=[0, 999, 0])
-    kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
-    assert ViolationKind.ROUTE_MISSING_STOP in kinds
+    violation_types = {v.type for v in violations(DispatchState(network, orders, {"v1": veh}))}
+    assert ViolationType.ROUTE_MISSING_STOP in violation_types
 
 
 def test_shift_end_exceeded_detected(network):
     orders = {"o1": _order("o1", 1)}
     veh = Vehicle("v1", 10, 0, 1, assigned=["o1"], route=[0, 1, 0])
-    kinds = {v.kind for v in violations(DispatchState(network, orders, {"v1": veh}))}
-    assert ViolationKind.SHIFT_END_EXCEEDED in kinds
+    violation_types = {v.type for v in violations(DispatchState(network, orders, {"v1": veh}))}
+    assert ViolationType.SHIFT_END_EXCEEDED in violation_types
 
 
 def test_schedule_handles_empty_route(network):

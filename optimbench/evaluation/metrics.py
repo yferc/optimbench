@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ..verification import VerificationResult
+from optimbench.verification import VerificationResult
 
 
 def task_score(result: VerificationResult) -> float:

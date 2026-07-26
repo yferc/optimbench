@@ -2,22 +2,24 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..domain import (
+from optimbench.domain import (
     DEPOT,
     ActionType,
     Decision,
     DispatchState,
     Disruption,
-    DisruptionKind,
+    DisruptionType,
     Order,
+    OrderFilter,
     OrderStatus,
+    Priority,
     Scenario,
     Trajectory,
     Vehicle,
     is_feasible,
     violations,
 )
-from .tools import TOOLSET, ToolSpec
+from optimbench.simulation.tools import TOOLSET, ToolSpec
 
 
 class DispatchEnvironment:
@@ -105,18 +107,20 @@ class DispatchEnvironment:
         return handler(args)
 
     def _list_orders(self, args):
-        which = args.get("filter", "live")
-        if not isinstance(which, str):
-            return {}, False, "filter must be a string"
+        try:
+            which = OrderFilter(args.get("filter", OrderFilter.LIVE))
+        except ValueError:
+            return {}, False, "unknown filter"
         pool = list(self._state.orders.values())
         assigned = self._state.assigned_ids()
         selected = {
-            "all": pool,
-            "live": [o for o in pool if o.status is OrderStatus.LIVE],
-            "unassigned": [o for o in pool if o.status is OrderStatus.LIVE and o.id not in assigned],
-            "rush": [o for o in pool if o.priority.value == "rush"],
-        }.get(which, [])
-        return [self._order_view(o, self._state) for o in selected], True, which
+            OrderFilter.ALL: pool,
+            OrderFilter.LIVE: [o for o in pool if o.status is OrderStatus.LIVE],
+            OrderFilter.UNASSIGNED:
+                [o for o in pool if o.status is OrderStatus.LIVE and o.id not in assigned],
+            OrderFilter.RUSH: [o for o in pool if o.priority is Priority.RUSH],
+        }[which]
+        return [self._order_view(o, self._state) for o in selected], True, which.value
 
     def _get_vehicle(self, args):
         vehicle = self._vehicle(args.get("vehicle_id"))
@@ -134,7 +138,7 @@ class DispatchEnvironment:
         found = violations(self._state)
         return {
             "feasible": not found,
-            "violations": [{"kind": v.kind.value, "ref": v.ref} for v in found],
+            "violations": [{"type": v.type.value, "ref": v.ref} for v in found],
         }, True, ""
 
     def _assign_order(self, args):
@@ -216,16 +220,16 @@ class DispatchEnvironment:
         return max(candidates, key=lambda v: (v.load(self._state.orders), v.id))
 
     def _apply(self, disruption: Disruption) -> None:
-        if disruption.kind is DisruptionKind.BREAKDOWN:
+        if disruption.type is DisruptionType.BREAKDOWN:
             vehicle = self._busiest_vehicle()
             if vehicle is not None:
                 vehicle.in_service = False
                 for order_id in list(vehicle.assigned):
                     self._detach(order_id)
                 vehicle.route = []
-        elif disruption.kind is DisruptionKind.RUSH_ORDER:
+        elif disruption.type is DisruptionType.RUSH_ORDER:
             self._state.orders[disruption.order.id] = disruption.order
-        elif disruption.kind is DisruptionKind.CANCELLATION:
+        elif disruption.type is DisruptionType.CANCELLATION:
             order = self._state.orders.get(disruption.order_id)
             if order is not None:
                 self._detach(order.id)

@@ -1,10 +1,11 @@
-from .base import Agent
-from .greedy import GreedyDispatcher
-from .llm import LLMAgent, OpenAICompatibleClient, openai_compatible_agent
-from .random import RandomDispatcher
+from optimbench.agents.base import Agent, AgentType
+from optimbench.agents.greedy import GreedyDispatcher
+from optimbench.agents.llm import LLMAgent, OpenAICompatibleClient, openai_compatible_agent
+from optimbench.agents.random import RandomDispatcher
 
 __all__ = [
     "Agent",
+    "AgentType",
     "GreedyDispatcher",
     "LLMAgent",
     "OpenAICompatibleClient",

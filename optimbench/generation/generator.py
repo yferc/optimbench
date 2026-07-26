@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..domain import (
+from optimbench.domain import (
     DEPOT,
     Difficulty,
     DispatchState,
     Disruption,
-    DisruptionKind,
+    DisruptionType,
     Order,
     OrderStatus,
     Priority,
@@ -16,7 +16,7 @@ from ..domain import (
     Vehicle,
     euclidean_time_matrix,
 )
-from .scenario import DIFFICULTY, DifficultySpec
+from optimbench.generation.difficulty import DIFFICULTY, DifficultySpec
 
 _RUSH_RESERVE = 3
 _HORIZON_BUFFER = 60.0
@@ -50,7 +50,7 @@ class DispatchScenarioGenerator:
         return out_and_back + max_service + _HORIZON_BUFFER
 
     def _demand_budget(self, spec: DifficultySpec) -> float:
-        usable = (spec.vehicles - 1) * spec.capacity - _RUSH_RESERVE
+        usable = (spec.vehicles - 1) * spec.vehicle_capacity - _RUSH_RESERVE
         return usable / spec.slack_ratio
 
     def _feasible_construction(
@@ -68,7 +68,7 @@ class DispatchScenarioGenerator:
         total_demand = 0
 
         for index in range(spec.vehicles):
-            vehicle = Vehicle(f"veh_{index}", spec.capacity, DEPOT, int(horizon))
+            vehicle = Vehicle(f"veh_{index}", spec.vehicle_capacity, DEPOT, int(horizon))
             route = [DEPOT]
             load = 0
             for _ in range(quota[index]):
@@ -100,26 +100,26 @@ class DispatchScenarioGenerator:
             orders[f"ord_cancel_{index}"] = Order(
                 f"ord_cancel_{index}", node, int(rng.integers(1, 4)),
                 0, int(horizon), 1, status=OrderStatus.CANCELLED)
-        for index in range(spec.out_of_service):
+        for index in range(spec.offline_vehicles):
             vehicles.append(
-                Vehicle(f"veh_offline_{index}", spec.capacity, DEPOT, int(horizon), in_service=False))
+                Vehicle(f"veh_offline_{index}", spec.vehicle_capacity, DEPOT, int(horizon), in_service=False))
 
     def _disruptions(
         self, rng: np.random.Generator, spec: DifficultySpec,
         orders: dict[str, Order], horizon: float,
     ) -> list[Disruption]:
-        plan = [DisruptionKind.BREAKDOWN, DisruptionKind.RUSH_ORDER, DisruptionKind.CANCELLATION]
+        plan = [DisruptionType.BREAKDOWN, DisruptionType.RUSH_ORDER, DisruptionType.CANCELLATION]
         disruptions: list[Disruption] = []
-        for kind in plan[: spec.waves]:
-            if kind is DisruptionKind.BREAKDOWN:
-                disruptions.append(Disruption(kind))
-            elif kind is DisruptionKind.RUSH_ORDER:
+        for disruption_type in plan[: spec.disruption_waves]:
+            if disruption_type is DisruptionType.BREAKDOWN:
+                disruptions.append(Disruption(disruption_type))
+            elif disruption_type is DisruptionType.RUSH_ORDER:
                 node = int(rng.integers(1, spec.nodes))
-                disruptions.append(Disruption(kind, order=Order(
+                disruptions.append(Disruption(disruption_type, order=Order(
                     "ord_rush", node, int(rng.integers(1, 3)),
                     0, int(horizon), 2, priority=Priority.RUSH)))
-            elif kind is DisruptionKind.CANCELLATION and orders:
-                disruptions.append(Disruption(kind, order_id=next(iter(orders))))
+            elif disruption_type is DisruptionType.CANCELLATION and orders:
+                disruptions.append(Disruption(disruption_type, order_id=next(iter(orders))))
         return disruptions
 
     @staticmethod

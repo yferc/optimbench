@@ -19,6 +19,7 @@ Each turn is one API call, so start small; --max-turns bounds a flailing episode
 from __future__ import annotations
 
 import argparse
+import logging
 
 from optimbench.agents import openai_compatible_agent
 from optimbench.domain import ActionType, Difficulty, is_feasible
@@ -29,6 +30,7 @@ from optimbench.verification import DispatchVerifier
 
 GEN = DispatchScenarioGenerator()
 VERIFIER = DispatchVerifier()
+log = logging.getLogger("optimbench")
 
 
 def run_episode(agent, scenario, max_turns: int):
@@ -46,6 +48,7 @@ def run_episode(agent, scenario, max_turns: int):
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser()
     parser.add_argument("--difficulty", default="easy", choices=[d.value for d in Difficulty])
     parser.add_argument("--seeds", type=int, default=5)
@@ -58,10 +61,10 @@ def main() -> None:
         result = run_episode(openai_compatible_agent(), GEN.generate(seed, difficulty), args.max_turns)
         tasks.append(task_score(result))
         feasible.append(result.feasible)
-        print(f"  seed {seed}: feasible={result.feasible}  task={task_score(result):.3f}", flush=True)
+        log.info("  seed %d: feasible=%s  task=%.3f", seed, result.feasible, task_score(result))
 
-    print(f"{difficulty.value}: feasibility {sum(feasible) / len(feasible):.0%}  "
-          f"task {sum(tasks) / len(tasks):.3f}  ({len(tasks)} seeds)")
+    log.info("%s: feasibility %.0f%%  task %.3f  (%d seeds)", difficulty.value,
+             100 * sum(feasible) / len(feasible), sum(tasks) / len(tasks), len(tasks))
 
 
 if __name__ == "__main__":

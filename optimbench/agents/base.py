@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any, Protocol
 
-from ..domain import ActionType
+from optimbench.domain import ActionType
+
+
+class AgentType(str, Enum):
+    RANDOM = "random"
+    GREEDY = "greedy"
+    LEARNED = "learned"
+    LLM = "llm"
 
 
 class Agent(Protocol):

@@ -4,14 +4,14 @@ import math
 
 import numpy as np
 
-from .geometry import route_time
-from .models import DEPOT, DispatchState, Vehicle
+from optimbench.domain.geometry import route_time
+from optimbench.domain.models import DEPOT, DispatchState, Vehicle
 
 
 def reference_cost(state: DispatchState) -> float:
     """Fleet time of a strong deterministic dispatch of the live orders over the
     in-service fleet: sweep assignment, then nearest-neighbour + 2-opt routing.
-    Independent of how the agent assigned or routed — task_score measures the
+    Independent of how the agent assigned or routed; task_score measures the
     agent's committed cost against this canonical solution of the same instance."""
     vehicles = [v for v in state.vehicles.values() if v.in_service]
     if not vehicles:

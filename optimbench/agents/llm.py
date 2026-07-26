@@ -8,8 +8,8 @@ import urllib.request
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 
-from ..domain import ActionType
-from ..simulation import TOOLSET, ToolSpec
+from optimbench.domain import ActionType
+from optimbench.simulation import TOOLSET, ToolSpec
 
 _RETRIES = 5
 _BACKOFF = 2.0
@@ -20,7 +20,7 @@ _SYSTEM = """You are a vehicle-dispatch controller working one tool call per tur
 Each wave, follow this procedure:
   1. Assign every unassigned order to an in-service vehicle that still has spare
      capacity (prefer the vehicle whose centroid is nearest the order to keep travel low).
-  2. When no orders are unassigned, REROUTE each vehicle that has orders — this builds
+  2. When no orders are unassigned, REROUTE each vehicle that has orders. This builds
      its depot-anchored route. A vehicle with orders but an empty route is infeasible.
   3. Once every loaded vehicle has been rerouted, DISPATCH to submit the plan.
 Repeat for each disruption wave, including the final one (you must dispatch it too).
@@ -37,7 +37,7 @@ class ChatClient(Protocol):
 
 
 class OpenAICompatibleClient:
-    """Works with any OpenAI-compatible /chat/completions endpoint —
+    """Works with any OpenAI-compatible /chat/completions endpoint:
     Groq, Gemini, Ollama, OpenRouter, x.ai, OpenAI."""
 
     def __init__(self, base_url: str, api_key: str, model: str, temperature: float = 0.0) -> None:

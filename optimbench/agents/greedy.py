@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..domain import ActionType
+from optimbench.domain import ActionType
 
 
 class GreedyDispatcher:

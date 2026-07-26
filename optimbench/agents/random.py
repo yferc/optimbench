@@ -3,12 +3,12 @@ from __future__ import annotations
 import random
 from typing import Any
 
-from ..domain import ActionType
+from optimbench.domain import ActionType, OrderFilter
 
 
 class RandomDispatcher:
     """Uniform random policy over the parameterized action space, with arguments
-    sampled from the current observation. The zero-skill baseline — handy for
+    sampled from the current observation. The zero-skill baseline, handy for
     sanity-checking the environment and seeing what an unstructured rollout does."""
 
     def __init__(self, seed: int = 0) -> None:
@@ -29,7 +29,7 @@ class RandomDispatcher:
         nodes = self._nodes(obs)
 
         if action is ActionType.LIST_ORDERS:
-            return {"filter": self._rng.choice(["live", "unassigned", "rush", "all"])}
+            return {"filter": self._rng.choice(list(OrderFilter)).value}
         if action is ActionType.GET_VEHICLE:
             return {"vehicle_id": self._pick(vehicle_ids)}
         if action is ActionType.QUERY_TRAFFIC:

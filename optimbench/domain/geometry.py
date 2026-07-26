@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .models import DispatchState, RoadNetwork
+from optimbench.domain.models import DispatchState, RoadNetwork
 
 
 def euclidean_time_matrix(coordinates: np.ndarray, speed: float = 1.0) -> np.ndarray:

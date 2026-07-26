@@ -23,15 +23,15 @@ def test_vehicles_start_cleared(difficulty):
 
 
 def test_disruption_count_matches_spec():
-    assert len(GEN.generate(0, Difficulty.EASY).disruptions) == DIFFICULTY[Difficulty.EASY].waves
-    assert len(GEN.generate(0, Difficulty.HARD).disruptions) == DIFFICULTY[Difficulty.HARD].waves
+    assert len(GEN.generate(0, Difficulty.EASY).disruptions) == DIFFICULTY[Difficulty.EASY].disruption_waves
+    assert len(GEN.generate(0, Difficulty.HARD).disruptions) == DIFFICULTY[Difficulty.HARD].disruption_waves
 
 
 def test_determinism_same_seed():
     a = GEN.generate(7, Difficulty.MEDIUM)
     b = GEN.generate(7, Difficulty.MEDIUM)
     assert list(a.state.orders) == list(b.state.orders)
-    assert [d.kind for d in a.disruptions] == [d.kind for d in b.disruptions]
+    assert [d.type for d in a.disruptions] == [d.type for d in b.disruptions]
 
 
 def test_cancelled_distractors_present_on_hard():

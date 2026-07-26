@@ -3,17 +3,17 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-from ..agents import Agent
-from ..domain import ActionType, Difficulty, is_feasible
-from ..generation import DispatchScenarioGenerator
-from ..simulation import DispatchEnvironment
-from ..verification import DispatchVerifier
-from .metrics import (
+from optimbench.agents import Agent
+from optimbench.domain import ActionType, Difficulty, is_feasible
+from optimbench.evaluation.metrics import (
     MetricSummary,
     integrity_score,
     robustness_score,
     task_score,
 )
+from optimbench.generation import DispatchScenarioGenerator
+from optimbench.simulation import DispatchEnvironment
+from optimbench.verification import DispatchVerifier
 
 
 @dataclass(frozen=True)

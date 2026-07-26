@@ -11,12 +11,13 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Yahia Ferchichi" }]
 keywords = ["evaluation", "reinforcement-learning", "optimization", "agents", "verifier", "rlvr", "benchmark"]
-dependencies = ["numpy>=1.23"]
+# imageio + pygame are runtime deps of the renderer and scripts, so they are not
+# optional: a bare `uv run` (what PyCharm calls) then always has what a script needs.
+dependencies = ["numpy>=1.23", "imageio>=2.31", "imageio-ffmpeg>=0.4", "pygame>=2.5"]
 
 [project.optional-dependencies]
 solver = ["ortools>=9.7"]
-media = ["imageio>=2.31", "imageio-ffmpeg>=0.4", "pygame>=2.5"]
-rl = ["torch>=2.0"]
+rl = ["torch>=2.0"]                        # only to train or run the learned agent
 dev = ["pytest>=7.0", "ruff==0.16.0"]
 
 [tool.setuptools.packages.find]
