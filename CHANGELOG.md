@@ -16,6 +16,9 @@ is versioned separately by `BENCHMARK_VERSION` (see `optimbench/domain/version.p
   to 1.1, so v1.0 and v1.1 numbers are not comparable.
 
 ### Added
+- `scripts/replay.py`: replay one episode as a readable narrative (each mutation and commit, when
+  a disruption hits, which wave went infeasible, and the final verdict with the integrity flag that
+  tripped), for any agent. The qualitative companion to the leaderboard.
 - `scripts/export_trajectories.py`: export expert dispatch trajectories (greedy by default) as
   JSONL (prompt, completion) pairs from successful episodes, for supervised warm-start before RL.
 - A Prime Intellect hub / verifiers adapter (`optimbench/hub/`, the `hub` extra, and the
