@@ -1,0 +1,14 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.0
+    hooks:
+      - id: ruff
+        args: [check]
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: env SDL_VIDEODRIVER=dummy pytest -q
+        language: system
+        pass_filenames: false
+        always_run: true

@@ -80,6 +80,20 @@ This is the most important section. Follow every rule.
 - torch is optional (the `rl` extra). The core package and the default test run must work without torch. Tests that need it call `pytest.importorskip("torch")` at module top so they skip cleanly when torch is absent. Keep new torch-dependent code out of import paths that the core package or non-rl tests exercise.
 - Determinism: the domain rules, the reference solver, and the verifier are fully deterministic. Scenario generation is seeded. Preserve this. Do not introduce unseeded randomness into these paths.
 
+## Environment interface
+
+`DispatchEnvironment` is the gym-style loop. `reset(scenario)` returns the first observation; `step(action, args)` takes an `ActionType` and an args dict keyed by the `Arg` enum, and returns `{result, accepted, note, observation}`.
+
+- Observation (a dict): `wave`, `waves_total`, `final_wave`, `feasible`, `depot` coordinates, `vehicles` (id, capacity, in_service, load, assigned, route, load centroid), and `unassigned_orders` (id, node, coord, demand, window, priority).
+- Action space: the ten `ActionType` tools in `simulation/tools.py`, each with its `Arg` keys. Read tools return info; mutation tools edit the plan; `dispatch` commits the wave and applies the next disruption.
+- Reward is terminal, from the verifier: `task`, `robustness`, `integrity`. See `papers/benchmark_card.md`.
+
+## Working agreements
+
+- Before you commit: `ruff check optimbench tests scripts` is clean, `SDL_VIDEODRIVER=dummy pytest -q` is green, no em-dashes, no new magic strings, no new `try/except` or `dict.get`. `pre-commit install` wires the first two as a hook.
+- Commit messages: a short imperative subject, then a body explaining the why. No em-dashes.
+- Human-gated: do not mutate datasets, trained checkpoints under `models/`, or experiment logs without explicit sign-off. Regenerate media and models with the scripts, do not hand-edit them.
+
 ## Notes
 
 - `models/` holds trained policies; `docs/media/` holds rendered episodes. Caches and build artifacts are git-ignored (`__pycache__`, `.pytest_cache`, `.ruff_cache`, `*.egg-info`, `build/`, `dist/`).
