@@ -24,6 +24,13 @@ class Role(str, Enum):
     ASSISTANT = "assistant"
 
 
+class MessageKey(str, Enum):
+    """The OpenAI chat wire-format keys of a single message."""
+
+    ROLE = "role"
+    CONTENT = "content"
+
+
 # The example call is derived from the enums, not hardcoded, so the schema the LLM is
 # told to emit cannot drift from the keys the parser reads.
 _EXAMPLE_CALL = json.dumps({
@@ -156,19 +163,18 @@ class LLMAgent:
         self._history: list[dict[str, str]] = []
 
     def act(self, observation: dict[Field, Any]) -> tuple[ActionType, dict[Arg, Any]]:
-        user = _message(Role.USER, render_state(observation, self._tools))
-        reply = self._client.chat([_message(Role.SYSTEM, SYSTEM_PROMPT), *self._history, user])
+        user = chat_message(Role.USER, render_state(observation, self._tools))
+        reply = self._client.chat([chat_message(Role.SYSTEM, SYSTEM_PROMPT), *self._history, user])
         self._remember(user, reply)
         return parse_tool_call(reply, self._names)
 
     def _remember(self, user: dict[str, str], reply: str) -> None:
-        self._history = [*self._history, user, _message(Role.ASSISTANT, reply)]
+        self._history = [*self._history, user, chat_message(Role.ASSISTANT, reply)]
         self._history = self._history[-2 * _MEMORY_TURNS :]
 
 
-def _message(role: Role, content: str) -> dict[str, str]:
-    # "role"/"content" are the OpenAI chat wire-format keys.
-    return {"role": role.value, "content": content}
+def chat_message(role: Role, content: str) -> dict[str, str]:
+    return {MessageKey.ROLE.value: role.value, MessageKey.CONTENT.value: content}
 
 
 def _to_args(raw: Any) -> dict[Arg, Any]:

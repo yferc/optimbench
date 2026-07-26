@@ -58,7 +58,6 @@ class DispatchState:
     orders: dict[str, Order]
     vehicles: dict[str, Vehicle]
     wave: int = 0
-    committed: bool = False
 
     def live_orders(self) -> list[Order]:
         return [o for o in self.orders.values() if o.status is OrderStatus.LIVE]

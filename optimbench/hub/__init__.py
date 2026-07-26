@@ -22,7 +22,15 @@ from typing import Any
 import verifiers as vf
 from datasets import Dataset
 
-from optimbench.agents.llm import SYSTEM_PROMPT, parse_tool_call, render_state, tool_action_names
+from optimbench.agents.llm import (
+    SYSTEM_PROMPT,
+    MessageKey,
+    Role,
+    chat_message,
+    parse_tool_call,
+    render_state,
+    tool_action_names,
+)
 from optimbench.domain import BENCHMARK_VERSION, ActionType, Difficulty, Field, is_feasible
 from optimbench.evaluation import (
     TEST_SEEDS,
@@ -60,8 +68,10 @@ _COMMITTED = "optimbench_committed"
 _RESULT = "optimbench_result"
 
 
-def _text(message: Any) -> str:
-    content = message.content if hasattr(message, "content") else message["content"]
+def _message_content(message: Any) -> str:
+    # Framework boundary: verifiers hands us Pydantic message objects (attribute access), while
+    # the tests and normalized paths use plain dicts. A non-text content parses to INVALID.
+    content = message.content if hasattr(message, MessageKey.CONTENT.value) else message[MessageKey.CONTENT.value]
     return content if isinstance(content, str) else ""
 
 
@@ -132,13 +142,13 @@ class OptimBenchEnv(vf.MultiTurnEnv):
 
     async def env_response(self, messages: Any, state: Any, **kwargs: Any) -> Any:
         env: DispatchEnvironment = state[_ENV]
-        action, args = parse_tool_call(_text(messages[-1]), _NAMES)
+        action, args = parse_tool_call(_message_content(messages[-1]), _NAMES)
         committing = action is ActionType.DISPATCH
         feasible = is_feasible(env.state) if committing else False
         outcome = await asyncio.to_thread(env.step, action, args)
         if committing and outcome[Field.ACCEPTED]:
             state[_COMMITTED].append(feasible)
-        reply = [{"role": "user", "content": render_state(outcome[Field.OBSERVATION])}]
+        reply = [chat_message(Role.USER, render_state(outcome[Field.OBSERVATION]))]
         if env.done:
             state["final_env_response"] = reply
         return reply

@@ -6,7 +6,6 @@ from enum import Enum
 class OrderStatus(str, Enum):
     LIVE = "live"
     CANCELLED = "cancelled"
-    DELIVERED = "delivered"
 
 
 class Priority(str, Enum):
