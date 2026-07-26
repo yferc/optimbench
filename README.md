@@ -41,9 +41,19 @@ A hand-written heuristic and a trained network, one verifier, 50 procedurally ge
 
 The point is that this table is produced by code, not judgement: the same deterministic verifier scores a hand-written heuristic and a trained network on equal terms.
 
-### LLM agents
+### LLM agents (zero-shot)
 
-The tool-using agent runs on any OpenAI-compatible endpoint (Groq, Gemini, Ollama, x.ai, and so on) via three env vars (see `scripts/run_llm.py`). As a first probe, a small local model (Qwen2.5-7B through Ollama, ReAct-style with short-term memory) scored **0% feasible on easy over 5 seeds**: it follows the tool protocol and gets the assign, reroute, dispatch shape right, but does not recover cleanly from the breakdown. It leaves an order unassigned and a reloaded vehicle's route stale, then dispatches anyway. The environment is solvable (greedy is 100% feasible on the same seeds); holding feasibility *through a disruption* is the gap this benchmark is built to surface. A hosted frontier model is expected to do far better; the harness is one API key away from running it.
+The tool-using agent runs on any OpenAI-compatible endpoint (Groq, Gemini, Ollama, x.ai, and so on) via three env vars (see `scripts/run_llm.py`). Zero-shot results on easy, task score (higher is better):
+
+| model                          | feasibility | task    |
+|--------------------------------|-------------|---------|
+| qwen2.5-7b (local, Ollama)     | 0%          | 0.00    |
+| llama-3.1-8b-instant (Groq)    | 33%         | 0.26    |
+| llama-3.3-70b-versatile (Groq) | feasible\*  | ~0.67\* |
+
+The pattern is the point. A frontier-class 70B model, zero-shot, lands a feasible plan but at roughly 0.67 task, **below the greedy heuristic's 0.83 and well below the trained policy's 0.93**. Smaller models degrade fast: the 8B is feasible only one seed in three, and the 7B never holds feasibility through the breakdown at all. It follows the tool protocol and gets the assign, reroute, dispatch shape right, then leaves an order unassigned or a reloaded vehicle's route stale and dispatches anyway. The instances are solvable (greedy is 100% feasible on the same seeds); holding feasibility *through a disruption* is the gap this benchmark is built to surface, and current LLMs do not clear it zero-shot.
+
+\*llama-3.3-70b is a single seed, taken before the Groq free-tier daily quota was exhausted; a full multi-seed run is pending a quota reset or a second key. All LLM numbers are zero-shot through the tool API, whereas the learned 0.93 is a policy trained on the task.
 
 ## How it is built
 
