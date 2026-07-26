@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Iterable
+from enum import Enum
 from typing import Any
 
 import verifiers as vf
@@ -30,6 +31,7 @@ from optimbench.evaluation import (
     integrity_score,
     robustness_score,
     task_score,
+    verify_episode,
 )
 from optimbench.generation import DispatchScenarioGenerator
 from optimbench.simulation import DispatchEnvironment
@@ -38,6 +40,19 @@ from optimbench.verification import DispatchVerifier
 _GEN = DispatchScenarioGenerator()
 _VERIFIER = DispatchVerifier()
 _NAMES = tool_action_names()
+
+# A loose upper bound on model turns per episode: the per-wave cap times more waves than any
+# difficulty generates, so a well-behaved agent is never cut off mid-episode.
+_WAVE_HEADROOM = 6
+
+
+class InfoKey(str, Enum):
+    """Keys of the per-row info payload the adapter round-trips through JSON."""
+
+    SEED = "seed"
+    DIFFICULTY = "difficulty"
+    BENCHMARK_VERSION = "benchmark_version"
+
 
 # Rollout-state keys the adapter owns. Kept out of the model-visible message stream.
 _ENV = "optimbench_env"
@@ -58,9 +73,9 @@ def _dataset(seeds: Iterable[int], difficulty: Difficulty) -> Dataset:
         rows.append({
             "question": render_state(first_observation),
             "info": json.dumps({
-                "seed": int(seed),
-                "difficulty": difficulty.value,
-                "benchmark_version": BENCHMARK_VERSION,
+                InfoKey.SEED: int(seed),
+                InfoKey.DIFFICULTY: difficulty.value,
+                InfoKey.BENCHMARK_VERSION: BENCHMARK_VERSION,
             }),
         })
     return Dataset.from_list(rows)
@@ -68,19 +83,13 @@ def _dataset(seeds: Iterable[int], difficulty: Difficulty) -> Dataset:
 
 def _new_env(info: dict[str, Any], max_turns_per_wave: int) -> DispatchEnvironment:
     env = DispatchEnvironment(max_turns_per_wave=max_turns_per_wave)
-    env.reset(_GEN.generate(info["seed"], Difficulty(info["difficulty"])))
+    env.reset(_GEN.generate(info[InfoKey.SEED], Difficulty(info[InfoKey.DIFFICULTY])))
     return env
 
 
 def _verified(state: Any) -> tuple[Any, list[bool]]:
     if _RESULT not in state:
-        env: DispatchEnvironment = state[_ENV]
-        committed: list[bool] = state[_COMMITTED]
-        waves = len(env.scenario.disruptions) + 1
-        resolved = sum(committed[:waves])
-        wave_feasibility = (committed + [False] * waves)[:waves]
-        result = _VERIFIER.verify(env.state, env.trajectory, waves, resolved)
-        state[_RESULT] = (result, wave_feasibility)
+        state[_RESULT] = verify_episode(_VERIFIER, state[_ENV], state[_COMMITTED])
     return state[_RESULT]
 
 
@@ -159,5 +168,5 @@ def load_environment(
         eval_dataset=_dataset(list(TEST_SEEDS), tier),
         rubric=rubric,
         system_prompt=SYSTEM_PROMPT,
-        max_turns=max_turns_per_wave * 6,
+        max_turns=max_turns_per_wave * _WAVE_HEADROOM,
     )

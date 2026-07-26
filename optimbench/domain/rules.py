@@ -94,7 +94,7 @@ def _assigned_orders(state: DispatchState, vehicle: Vehicle) -> list[Order]:
     return [state.orders[o] for o in vehicle.assigned]
 
 
-def _stop_timing(state: DispatchState, vehicle: Vehicle):
+def _stop_timing(state: DispatchState, vehicle: Vehicle) -> tuple[dict[int, float], dict[int, float]]:
     service_at: dict[int, float] = {}
     open_at: dict[int, float] = {}
     for order in _assigned_orders(state, vehicle):

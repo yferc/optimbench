@@ -54,6 +54,8 @@ class DispatchScenarioGenerator:
         return out_and_back + max_service + _HORIZON_BUFFER
 
     def _demand_budget(self, spec: DifficultySpec) -> float:
+        # Hold one vehicle's capacity in reserve so a breakdown wave stays feasible, and set
+        # aside _RUSH_RESERVE for a rush-order wave, then divide by slack to leave headroom.
         usable = (spec.vehicles - 1) * spec.vehicle_capacity - _RUSH_RESERVE
         return usable / spec.slack_ratio
 

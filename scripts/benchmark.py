@@ -13,18 +13,27 @@ import argparse
 import importlib.util
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path
 
-from optimbench.agents import AgentType, GreedyDispatcher, RandomDispatcher, openai_compatible_agent
+from optimbench.agents import (
+    Agent,
+    AgentType,
+    GreedyDispatcher,
+    RandomDispatcher,
+    openai_compatible_agent,
+)
 from optimbench.domain import BENCHMARK_VERSION, Difficulty
 from optimbench.evaluation import TEST_SEEDS, EvaluationReport, Evaluator
+
+AgentFactory = Callable[[], Agent]
 
 ROOT = Path(__file__).resolve().parent.parent
 log = logging.getLogger("optimbench")
 
 
-def _agents() -> dict[str, object]:
-    agents: dict[str, object] = {
+def _agents() -> dict[str, AgentFactory]:
+    agents: dict[str, AgentFactory] = {
         AgentType.RANDOM.value: RandomDispatcher,
         AgentType.GREEDY.value: GreedyDispatcher,
     }

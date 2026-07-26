@@ -19,6 +19,21 @@ from optimbench.simulation import DispatchEnvironment
 from optimbench.verification import DispatchVerifier, VerificationResult
 
 
+def verify_episode(
+    verifier: DispatchVerifier, env: DispatchEnvironment, committed_feasibility: list[bool]
+) -> tuple[VerificationResult, list[bool]]:
+    """Score a finished rollout: its verification result and the per-wave feasibility vector.
+
+    Shared by the evaluator and the hub adapter so both score an episode identically. There is
+    one wave per disruption plus the initial wave; a wave the agent never committed counts as a
+    failure, which pads the vector to the expected length.
+    """
+    waves = len(env.scenario.disruptions) + 1
+    resolved = sum(committed_feasibility[:waves])
+    wave_feasibility = (committed_feasibility + [False] * waves)[:waves]
+    return verifier.verify(env.state, env.trajectory, waves, resolved), wave_feasibility
+
+
 @dataclass(frozen=True)
 class EvaluationReport:
     episodes: int
@@ -93,12 +108,10 @@ class Evaluator:
         committed_feasibility: list[bool] = []
         while not env.done:
             action, args = agent.act(env.observation())
+            # sample feasibility before step(): committing a dispatch applies the next
+            # disruption, so afterwards this wave's plan is no longer the current state
             feasible = is_feasible(env.state) if action is ActionType.DISPATCH else False
             if env.step(action, args)[Field.ACCEPTED] and action is ActionType.DISPATCH:
                 committed_feasibility.append(feasible)
 
-        waves = len(scenario.disruptions) + 1
-        resolved = sum(committed_feasibility[:waves])
-        wave_feasibility = (committed_feasibility + [False] * waves)[:waves]
-        result = self._verifier.verify(env.state, env.trajectory, waves, resolved)
-        return result, wave_feasibility
+        return verify_episode(self._verifier, env, committed_feasibility)

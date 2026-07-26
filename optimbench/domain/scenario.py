@@ -9,7 +9,6 @@ from optimbench.domain.models import DispatchState, Order
 @dataclass(frozen=True)
 class Disruption:
     type: DisruptionType
-    vehicle_id: str | None = None
     order: Order | None = None
     order_id: str | None = None
 
