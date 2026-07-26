@@ -15,6 +15,7 @@ _RETRIES = 5
 _BACKOFF = 2.0
 _RETRYABLE = frozenset({429, 500, 502, 503, 504})
 _NO_KEY = "none"  # local servers (Ollama) accept any placeholder
+_USER_AGENT = "optimbench"
 _ARG_VALUES = frozenset(arg.value for arg in Arg)
 
 
@@ -75,7 +76,13 @@ class OpenAICompatibleClient:
         payload = json.dumps({
             "model": self._model, "temperature": self._temperature, "messages": messages,
         }).encode()
-        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self._api_key}"}
+        # Send an explicit User-Agent: the default urllib one is blocked by the Cloudflare
+        # front on providers like Groq (403, error 1010), which would fail the whole run.
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self._api_key}",
+            "User-Agent": _USER_AGENT,
+        }
         for attempt in range(_RETRIES):
             try:
                 request = urllib.request.Request(self._url, data=payload, headers=headers)
