@@ -3,11 +3,17 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import urllib.request
 from typing import Any, Protocol
+from urllib.error import HTTPError, URLError
 
 from ..domain import ActionType
 from ..simulation import TOOLSET, ToolSpec
+
+_RETRIES = 5
+_BACKOFF = 2.0
+_RETRYABLE = frozenset({429, 500, 502, 503, 504})
 
 _SYSTEM = """You are a vehicle-dispatch controller working one tool call per turn.
 
@@ -44,12 +50,20 @@ class OpenAICompatibleClient:
         payload = json.dumps({
             "model": self._model, "temperature": self._temperature, "messages": messages,
         }).encode()
-        request = urllib.request.Request(
-            self._url, data=payload,
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {self._api_key}"},
-        )
-        with urllib.request.urlopen(request, timeout=120) as response:
-            return json.loads(response.read())["choices"][0]["message"]["content"]
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self._api_key}"}
+        for attempt in range(_RETRIES):
+            try:
+                request = urllib.request.Request(self._url, data=payload, headers=headers)
+                with urllib.request.urlopen(request, timeout=120) as response:
+                    return json.loads(response.read())["choices"][0]["message"]["content"]
+            except HTTPError as error:
+                if error.code not in _RETRYABLE or attempt == _RETRIES - 1:
+                    raise
+            except URLError:
+                if attempt == _RETRIES - 1:
+                    raise
+            time.sleep(_BACKOFF * 2**attempt)
+        raise RuntimeError("unreachable")
 
 
 class LLMAgent:
