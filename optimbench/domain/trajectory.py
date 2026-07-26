@@ -3,16 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from optimbench.domain.enums import ActionType
+from optimbench.domain.enums import ActionType, Arg, Note
 
 
 @dataclass(frozen=True)
 class Decision:
     turn: int
     action: ActionType
-    args: dict[str, Any]
+    args: dict[Arg, Any]
     accepted: bool
-    note: str = ""
+    note: Note = Note.NONE
 
 
 @dataclass

@@ -55,6 +55,7 @@ class Field(str, Enum):
     FEASIBLE = "feasible"
     DEPOT = "depot"
     VEHICLES = "vehicles"
+    ORDERS = "orders"
     UNASSIGNED_ORDERS = "unassigned_orders"
     # order and vehicle views
     ID = "id"

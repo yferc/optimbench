@@ -26,8 +26,9 @@ class EvaluationReport:
     integrity: MetricSummary
 
     def format(self) -> str:
-        def line(name: str, m: MetricSummary) -> str:
-            return f"  {name:<11} mean {m.mean:.3f}  iqm {m.iqm:.3f}  95% CI [{m.ci[0]:.3f}, {m.ci[1]:.3f}]"
+        def line(name: str, summary: MetricSummary) -> str:
+            return (f"  {name:<11} mean {summary.mean:.3f}  iqm {summary.iqm:.3f}"
+                    f"  95% CI [{summary.ci[0]:.3f}, {summary.ci[1]:.3f}]")
 
         return (
             f"{self.difficulty.value} · {self.episodes} episodes\n"
@@ -44,8 +45,8 @@ class Evaluator:
         generator: DispatchScenarioGenerator | None = None,
         verifier: DispatchVerifier | None = None,
     ) -> None:
-        self._generator = generator or DispatchScenarioGenerator()
-        self._verifier = verifier or DispatchVerifier()
+        self._generator = generator if generator is not None else DispatchScenarioGenerator()
+        self._verifier = verifier if verifier is not None else DispatchVerifier()
 
     def evaluate(
         self, make_agent: Callable[[], Agent], difficulty: Difficulty, seeds: Iterable[int]

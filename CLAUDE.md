@@ -61,12 +61,14 @@ optimbench/
 
 The one hard rule: every layer imports only from `optimbench.domain`. Layers do not import each other. In particular the verifier never imports the simulation, it inspects the final state and trajectory only. `domain` itself depends on nothing but numpy. Keep it that way.
 
+The exceptions are the composition roots: `evaluation/` and `scripts/`. They exist to wire the system together (generator, environment, verifier, agents) and may import several layers. Nothing else may.
+
 ## Coding conventions
 
 This is the most important section. Follow every rule.
 
 - Fail fast, do not program defensively. Internal code assumes its inputs are valid and lets a wrong assumption raise loudly. Do not return sentinels or swallow errors to keep running in a degraded state. A clear crash beats a corrupted result that looks correct.
-- Aim for zero `try/except`. The only acceptable place is a true system boundary: transient network I/O with explicit retry (the LLM client). Nowhere else. If you reach for `try/except` to handle a value that "might" be wrong, that value should have been the right type or checked with a plain `if`.
+- Aim for zero `try/except`. The only acceptable places are true system boundaries: transient network I/O with explicit retry (the LLM client), and decoding an untrusted LLM response (a malformed reply must not crash a benchmark run). Nowhere else. If you reach for `try/except` to handle a value that "might" be wrong, that value should have been the right type or checked with a plain `if`.
 - Never call `dict.get(...)` or `args.get(...)`. Index explicitly (`d[key]`), and where a key's presence is a genuine decision (a game rule, not defensiveness) test it with `in`. A missing key that the contract guarantees should raise, not be papered over with a default.
 - No primitive obsession. Every string that carries meaning is an enum, not a literal. This includes tool argument names, result keys, and observation keys, not just comparisons. Existing enums: `AgentType`, `OrderFilter`, `Priority`, `Difficulty`, `ActionType`, `DisruptionType`, `ViolationType`, `IntegrityFlag`, `OrderStatus`, and the tool-schema enums. Add an enum rather than introduce a magic string.
 - Prefer explicit, typed parameters over generic `**kwargs` or an untyped `args` dict threaded through functions. A function's signature should name what it needs.

@@ -27,8 +27,8 @@ def iqm(values: list[float]) -> float:
     ordered = np.sort(np.asarray(values, dtype=float))
     if ordered.size < 4:
         return float(ordered.mean()) if ordered.size else 0.0
-    cut = ordered.size // 4
-    return float(ordered[cut : ordered.size - cut].mean())
+    trim = ordered.size // 4
+    return float(ordered[trim : ordered.size - trim].mean())
 
 
 def bootstrap_ci(values: list[float], samples: int = 2000, alpha: float = 0.05) -> tuple[float, float]:

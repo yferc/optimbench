@@ -7,6 +7,8 @@ import numpy as np
 from optimbench.domain.geometry import route_time
 from optimbench.domain.models import DEPOT, DispatchState, Vehicle
 
+_IMPROVEMENT_EPS = 1e-9  # only accept a 2-opt swap that beats the current tour by more than float noise
+
 
 def reference_cost(state: DispatchState) -> float:
     """Fleet time of a strong deterministic dispatch of the live orders over the
@@ -68,7 +70,7 @@ def _two_opt(times: np.ndarray, route: list[int]) -> list[int]:
         for i in range(1, len(best) - 2):
             for j in range(i + 1, len(best) - 1):
                 candidate = best[:i] + best[i : j + 1][::-1] + best[j + 1 :]
-                if _cost(times, candidate) + 1e-9 < _cost(times, best):
+                if _cost(times, candidate) + _IMPROVEMENT_EPS < _cost(times, best):
                     best, improved = candidate, True
     return best
 

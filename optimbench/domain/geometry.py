@@ -17,10 +17,6 @@ def route_time(network: RoadNetwork, route: list[int]) -> float:
     return float(network.true_time[stops[:-1], stops[1:]].sum())
 
 
-def total_fleet_time(network: RoadNetwork, routes: list[list[int]]) -> float:
-    return float(sum(route_time(network, route) for route in routes))
-
-
 def fleet_cost(state: DispatchState) -> float:
     return float(sum(
         route_time(state.network, vehicle.route)

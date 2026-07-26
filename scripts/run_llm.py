@@ -50,7 +50,7 @@ def run_episode(agent, scenario, max_turns: int):
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser()
-    parser.add_argument("--difficulty", default="easy", choices=[d.value for d in Difficulty])
+    parser.add_argument("--difficulty", choices=[d.value for d in Difficulty], default=Difficulty.EASY.value)
     parser.add_argument("--seeds", type=int, default=5)
     parser.add_argument("--max-turns", type=int, default=60)
     args = parser.parse_args()

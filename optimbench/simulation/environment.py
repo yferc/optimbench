@@ -132,7 +132,7 @@ class DispatchEnvironment:
                 [o for o in pool if o.status is OrderStatus.LIVE and o.id not in assigned],
             OrderFilter.RUSH: [o for o in pool if o.priority is Priority.RUSH],
         }[which]
-        return ActionOutcome(True, result={Field.UNASSIGNED_ORDERS:
+        return ActionOutcome(True, result={Field.ORDERS:
                                             [self._order_view(o, self._state) for o in selected]})
 
     def _get_vehicle(self, args) -> ActionOutcome:

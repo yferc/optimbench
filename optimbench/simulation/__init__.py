@@ -1,4 +1,4 @@
-from optimbench.domain import TOOLSET, TOOLSET_BY_ACTION, Decision, ToolSpec, Trajectory
+from optimbench.domain import TOOLSET, Decision, ToolSpec, Trajectory
 from optimbench.simulation.environment import DispatchEnvironment
 
-__all__ = ["TOOLSET", "TOOLSET_BY_ACTION", "Decision", "DispatchEnvironment", "ToolSpec", "Trajectory"]
+__all__ = ["TOOLSET", "Decision", "DispatchEnvironment", "ToolSpec", "Trajectory"]

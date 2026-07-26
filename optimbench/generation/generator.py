@@ -20,6 +20,7 @@ from optimbench.generation.difficulty import DIFFICULTY, DifficultySpec
 
 _RUSH_RESERVE = 3
 _HORIZON_BUFFER = 60.0
+_WORLD = 100.0
 
 
 class DispatchScenarioGenerator:
@@ -28,15 +29,15 @@ class DispatchScenarioGenerator:
         spec = DIFFICULTY[difficulty]
         network = self._network(rng, spec)
         horizon = self._horizon(network, spec)
-        vehicles, orders = self._feasible_construction(rng, spec, network, horizon)
+        vehicles, orders = self._feasible_construction(rng, spec, horizon)
         self._add_distractors(rng, spec, vehicles, orders, horizon)
         disruptions = self._disruptions(rng, spec, orders, horizon)
         state = DispatchState(network, orders, self._cleared(vehicles, horizon))
         return Scenario(seed, difficulty, state, disruptions)
 
     def _network(self, rng: np.random.Generator, spec: DifficultySpec) -> RoadNetwork:
-        coordinates = rng.random((spec.nodes, 2)) * 100.0
-        coordinates[DEPOT] = [50.0, 50.0]
+        coordinates = rng.random((spec.nodes, 2)) * _WORLD
+        coordinates[DEPOT] = [_WORLD / 2, _WORLD / 2]
         true_time = euclidean_time_matrix(coordinates)
         observed_time = true_time.copy()
         stale = rng.random(true_time.shape) < spec.stale_fraction
@@ -54,8 +55,7 @@ class DispatchScenarioGenerator:
         return usable / spec.slack_ratio
 
     def _feasible_construction(
-        self, rng: np.random.Generator, spec: DifficultySpec,
-        network: RoadNetwork, horizon: float,
+        self, rng: np.random.Generator, spec: DifficultySpec, horizon: float,
     ) -> tuple[list[Vehicle], dict[str, Order]]:
         nodes = list(range(1, spec.nodes))
         rng.shuffle(nodes)

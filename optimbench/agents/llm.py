@@ -5,6 +5,7 @@ import os
 import re
 import time
 import urllib.request
+from enum import Enum
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 
@@ -13,6 +14,13 @@ from optimbench.domain import TOOLSET, ActionType, ToolCallKey, ToolSpec
 _RETRIES = 5
 _BACKOFF = 2.0
 _RETRYABLE = frozenset({429, 500, 502, 503, 504})
+_NO_KEY = "none"  # local servers (Ollama) accept any placeholder
+
+
+class Role(str, Enum):
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
 
 _SYSTEM = """You are a vehicle-dispatch controller working one tool call per turn.
 
@@ -76,18 +84,21 @@ class LLMAgent:
         self._history: list[dict[str, str]] = []
 
     def act(self, observation: dict[str, Any]) -> tuple[ActionType, dict[str, Any]]:
-        user = {"role": "user", "content": self._render(observation)}
-        reply = self._client.chat([{"role": "system", "content": _SYSTEM}, *self._history, user])
+        user = _message(Role.USER, self._render(observation))
+        reply = self._client.chat([_message(Role.SYSTEM, _SYSTEM), *self._history, user])
         self._remember(user, reply)
         return self._parse(reply)
 
     def _remember(self, user: dict[str, str], reply: str) -> None:
-        self._history = [*self._history, user, {"role": "assistant", "content": reply}]
+        self._history = [*self._history, user, _message(Role.ASSISTANT, reply)]
         self._history = self._history[-2 * _MEMORY_TURNS :]
 
     def _render(self, observation: dict[str, Any]) -> str:
-        tools = "\n".join(f"  {t.action.value}({', '.join(t.args)}): {t.summary}" for t in self._tools)
-        return f"TOOLS:\n{tools}\n\nSTATE:\n{json.dumps(observation, separators=(',', ':'))}"
+        lines = "\n".join(
+            f"  {tool.action.value}({', '.join(a.value for a in tool.args)}): {tool.summary}"
+            for tool in self._tools
+        )
+        return f"TOOLS:\n{lines}\n\nSTATE:\n{json.dumps(observation, separators=(',', ':'))}"
 
     def _parse(self, reply: str) -> tuple[ActionType, dict[str, Any]]:
         match = re.search(r"\{.*\}", reply, re.DOTALL)
@@ -104,11 +115,17 @@ class LLMAgent:
         return action, args if isinstance(args, dict) else {}
 
 
+def _message(role: Role, content: str) -> dict[str, str]:
+    # "role"/"content" are the OpenAI chat wire-format keys.
+    return {"role": role.value, "content": content}
+
+
 def openai_compatible_agent() -> LLMAgent:
     """Build an LLMAgent from OPTIMBENCH_LLM_{BASE_URL,API_KEY,MODEL} env vars."""
+    env = os.environ
     client = OpenAICompatibleClient(
-        base_url=os.environ["OPTIMBENCH_LLM_BASE_URL"],
-        api_key=os.environ.get("OPTIMBENCH_LLM_API_KEY", "none"),
-        model=os.environ["OPTIMBENCH_LLM_MODEL"],
+        base_url=env["OPTIMBENCH_LLM_BASE_URL"],
+        api_key=env["OPTIMBENCH_LLM_API_KEY"] if "OPTIMBENCH_LLM_API_KEY" in env else _NO_KEY,
+        model=env["OPTIMBENCH_LLM_MODEL"],
     )
     return LLMAgent(client)

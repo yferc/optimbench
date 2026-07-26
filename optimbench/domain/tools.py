@@ -24,5 +24,3 @@ TOOLSET: tuple[ToolSpec, ...] = (
     ToolSpec(ActionType.DISPATCH, (), "Submit the current plan for this wave (required to score it) and advance; the final wave must be dispatched too."),
     ToolSpec(ActionType.REFUSE, (Arg.REASON,), "Decline a request that cannot be satisfied."),
 )
-
-TOOLSET_BY_ACTION: dict[ActionType, ToolSpec] = {spec.action: spec for spec in TOOLSET}
