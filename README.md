@@ -115,6 +115,21 @@ export OPTIMBENCH_LLM_MODEL=llama-3.3-70b-versatile
 python scripts/run_llm.py --difficulty easy --seeds 5
 ```
 
+## Run it as a Prime Intellect environment
+
+OptimBench ships a [verifiers](https://github.com/PrimeIntellect-ai/verifiers) adapter, so it
+installs and runs from the Prime Intellect hub and trains under prime-rl with no glue. The
+core library stays dependency-light; the adapter lives behind the `hub` extra.
+
+```bash
+pip install -e ".[hub]"
+prime eval run optimbench -m openai/gpt-5-nano   # from environments/optimbench
+```
+
+The deterministic verifier becomes the reward (integrity gate times weighted task and
+robustness), the three scores are logged as metrics, and each scenario seed is one dataset
+row. See `environments/optimbench/` for the hub package and `optimbench/hub/` for the adapter.
+
 ## Roadmap
 
 OptimBench is the first member of a planned family of verifiable optimization environments (scheduling, packing, graph problems) sharing one generator, verifier, and metric suite. See `papers/benchmark_card.md` for the task definition, failure modes, and limitations.

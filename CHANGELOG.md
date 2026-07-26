@@ -8,6 +8,13 @@ is versioned separately by `BENCHMARK_VERSION` (see `optimbench/domain/version.p
 ## [Unreleased]
 
 ### Added
+- A Prime Intellect hub / verifiers adapter (`optimbench/hub/`, the `hub` extra, and the
+  `environments/optimbench/` package) exposing OptimBench behind `load_environment()` so it
+  runs under `prime eval run` and prime-rl. The deterministic verifier maps to a verifiers
+  Rubric reward, with the three scores logged as zero-weight metrics.
+- `combined_reward`: one scalar RL signal in [0, 1] with integrity as a hard multiplicative gate.
+- A reward-integrity audit suite (`tests/test_reward_integrity.py`) proving the gate and flags
+  fire on adversarial trajectories and that shortcuts score zero.
 - Type information for downstream consumers: a `py.typed` marker (PEP 561).
 - A curated top-level public API in `optimbench` with an explicit `__all__`.
 - Docstrings on the public extension points (the `Agent` protocol, `DispatchEnvironment`,

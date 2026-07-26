@@ -19,7 +19,7 @@ uv venv
 uv pip install -e ".[dev,rl]"
 ```
 
-The extras are: `dev` (pytest and ruff, ruff pinned to 0.16.0) and `rl` (torch, only to train or run the learned agent). The rendering deps (imageio, imageio-ffmpeg, pygame) are base dependencies, not an extra, so a bare install can always run the scripts. Install only the extras a task needs.
+The extras are: `dev` (pytest and ruff, ruff pinned to 0.16.0), `rl` (torch, only to train or run the learned agent), and `hub` (verifiers, only for the Prime Intellect hub adapter in `optimbench/hub/`). The rendering deps (imageio, imageio-ffmpeg, pygame) are base dependencies, not an extra, so a bare install can always run the scripts. Install only the extras a task needs.
 
 Run the tests headless. pygame requires a video driver, so set `SDL_VIDEODRIVER=dummy` (this is exactly what CI does):
 
@@ -61,7 +61,7 @@ optimbench/
 
 The one hard rule: every layer imports only from `optimbench.domain`. Layers do not import each other. In particular the verifier never imports the simulation, it inspects the final state and trajectory only. `domain` itself depends on nothing but numpy. Keep it that way.
 
-The exceptions are the composition roots: `evaluation/` and `scripts/`. They exist to wire the system together (generator, environment, verifier, agents) and may import several layers. Nothing else may.
+The exceptions are the composition roots: `evaluation/`, `scripts/`, and `hub/` (the verifiers adapter). They exist to wire the system together (generator, environment, verifier, agents) and may import several layers. `hub/` additionally imports the optional `verifiers` dependency, so, like the learned agent's torch import, it must stay out of every path the core package or a non-hub test loads: `optimbench/__init__` must never import it, and its test uses `pytest.importorskip("verifiers")`. Nothing else may cross layers.
 
 ## Coding conventions
 

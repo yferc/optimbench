@@ -31,7 +31,7 @@ _EXAMPLE_CALL = json.dumps({
     ToolCallKey.ARGS.value: {Arg.ORDER_ID.value: "ord_3", Arg.VEHICLE_ID.value: "veh_1"},
 })
 
-_SYSTEM = (
+SYSTEM_PROMPT = (
     """You are a vehicle-dispatch controller working one tool call per turn.
 
 Each wave, follow this procedure:
@@ -84,46 +84,57 @@ class OpenAICompatibleClient:
         raise RuntimeError("unreachable")
 
 
+def tool_action_names(tools: tuple[ToolSpec, ...] = TOOLSET) -> dict[str, ActionType]:
+    return {tool.action.value: tool.action for tool in tools}
+
+
+def render_state(observation: dict[Field, Any], tools: tuple[ToolSpec, ...] = TOOLSET) -> str:
+    """Render the tool list and the current observation into the one user message a model sees."""
+    lines = "\n".join(
+        f"  {tool.action.value}({', '.join(a.value for a in tool.args)}): {tool.summary}"
+        for tool in tools
+    )
+    return f"TOOLS:\n{lines}\n\nSTATE:\n{json.dumps(observation, separators=(',', ':'))}"
+
+
+def parse_tool_call(reply: str, names: dict[str, ActionType]) -> tuple[ActionType, dict[Arg, Any]]:
+    """Parse one JSON tool call out of an untrusted model reply, re-keying args to the Arg enum.
+
+    Falls back to a harmless read (check_feasibility) when the reply is not a valid, known call.
+    """
+    match = re.search(r"\{.*\}", reply, re.DOTALL)
+    if match is None:
+        return ActionType.CHECK_FEASIBILITY, {}
+    try:
+        call = json.loads(match.group())
+    except json.JSONDecodeError:
+        return ActionType.CHECK_FEASIBILITY, {}
+    if ToolCallKey.ACTION not in call or call[ToolCallKey.ACTION] not in names:
+        return ActionType.CHECK_FEASIBILITY, {}
+    action = names[call[ToolCallKey.ACTION]]
+    raw = call[ToolCallKey.ARGS] if ToolCallKey.ARGS in call else {}
+    return action, _to_args(raw)
+
+
 class LLMAgent:
     def __init__(self, client: ChatClient, tools: tuple[ToolSpec, ...] = TOOLSET) -> None:
         self._client = client
         self._tools = tools
-        self._names = {tool.action.value: tool.action for tool in tools}
+        self._names = tool_action_names(tools)
         self.reset()
 
     def reset(self) -> None:
         self._history: list[dict[str, str]] = []
 
     def act(self, observation: dict[Field, Any]) -> tuple[ActionType, dict[Arg, Any]]:
-        user = _message(Role.USER, self._render(observation))
-        reply = self._client.chat([_message(Role.SYSTEM, _SYSTEM), *self._history, user])
+        user = _message(Role.USER, render_state(observation, self._tools))
+        reply = self._client.chat([_message(Role.SYSTEM, SYSTEM_PROMPT), *self._history, user])
         self._remember(user, reply)
-        return self._parse(reply)
+        return parse_tool_call(reply, self._names)
 
     def _remember(self, user: dict[str, str], reply: str) -> None:
         self._history = [*self._history, user, _message(Role.ASSISTANT, reply)]
         self._history = self._history[-2 * _MEMORY_TURNS :]
-
-    def _render(self, observation: dict[Field, Any]) -> str:
-        lines = "\n".join(
-            f"  {tool.action.value}({', '.join(a.value for a in tool.args)}): {tool.summary}"
-            for tool in self._tools
-        )
-        return f"TOOLS:\n{lines}\n\nSTATE:\n{json.dumps(observation, separators=(',', ':'))}"
-
-    def _parse(self, reply: str) -> tuple[ActionType, dict[Arg, Any]]:
-        match = re.search(r"\{.*\}", reply, re.DOTALL)
-        if match is None:
-            return ActionType.CHECK_FEASIBILITY, {}
-        try:
-            call = json.loads(match.group())
-        except json.JSONDecodeError:
-            return ActionType.CHECK_FEASIBILITY, {}
-        if ToolCallKey.ACTION not in call or call[ToolCallKey.ACTION] not in self._names:
-            return ActionType.CHECK_FEASIBILITY, {}
-        action = self._names[call[ToolCallKey.ACTION]]
-        raw = call[ToolCallKey.ARGS] if ToolCallKey.ARGS in call else {}
-        return action, _to_args(raw)
 
 
 def _message(role: Role, content: str) -> dict[str, str]:
