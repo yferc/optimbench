@@ -65,13 +65,18 @@ The one hard rule: every layer imports only from `optimbench.domain`. Layers do 
 
 This is the most important section. Follow every rule.
 
+- Fail fast, do not program defensively. Internal code assumes its inputs are valid and lets a wrong assumption raise loudly. Do not return sentinels or swallow errors to keep running in a degraded state. A clear crash beats a corrupted result that looks correct.
+- Aim for zero `try/except`. The only acceptable place is a true system boundary: transient network I/O with explicit retry (the LLM client). Nowhere else. If you reach for `try/except` to handle a value that "might" be wrong, that value should have been the right type or checked with a plain `if`.
+- Never call `dict.get(...)` or `args.get(...)`. Index explicitly (`d[key]`), and where a key's presence is a genuine decision (a game rule, not defensiveness) test it with `in`. A missing key that the contract guarantees should raise, not be papered over with a default.
+- No primitive obsession. Every string that carries meaning is an enum, not a literal. This includes tool argument names, result keys, and observation keys, not just comparisons. Existing enums: `AgentType`, `OrderFilter`, `Priority`, `Difficulty`, `ActionType`, `DisruptionType`, `ViolationType`, `IntegrityFlag`, `OrderStatus`, and the tool-schema enums. Add an enum rather than introduce a magic string.
+- Prefer explicit, typed parameters over generic `**kwargs` or an untyped `args` dict threaded through functions. A function's signature should name what it needs.
 - Absolute imports only. Always `from optimbench.x import ...`. Never relative imports (`from .` or `from ..`).
 - No imports inside functions, with one justified exception: `torch` is imported lazily inside the learned-agent factory (`_learned_agent` in `scripts/run_episode.py` and the equivalent branch in `scripts/benchmark.py`) because torch is the optional `rl` dependency and the core package must import without it. Do not add other in-function imports.
-- Use enums, never magic-string comparisons or string branches. The existing enums are `AgentType`, `OrderFilter`, `Priority`, `Difficulty`, `ActionType`, `DisruptionType`, `ViolationType`, `IntegrityFlag`, and `OrderStatus`. Reach for one of these, or add an enum, instead of comparing raw strings.
 - Never use em-dashes anywhere in the repo: code, docstrings, comments, docs, commit messages. Use commas, colons, periods, or parentheses. Human punctuation only.
 - Use logging, never `print()`, in both scripts and library code. Get the logger with `logging.getLogger("optimbench")`.
 - Argparse defaults live in `add_argument(default=...)`. Do not implement defaults with `x or fallback`.
-- Clean style: small functions, self-explanatory names, type hints on parameters and return types, comments extremely rare (the code should read without them), prefer vectorized numpy, least coupling between modules, avoid deep nesting.
+- Comments are rare and earn their place: only where a name cannot carry the meaning (a non-obvious ratio, an invariant, a formula). Do not comment the obvious. Prefer a clearer name or type over a comment.
+- Clean style: small functions, self-explanatory names, type hints on parameters and return types, prefer vectorized numpy, least coupling between modules, avoid deep nesting.
 - torch is optional (the `rl` extra). The core package and the default test run must work without torch. Tests that need it call `pytest.importorskip("torch")` at module top so they skip cleanly when torch is absent. Keep new torch-dependent code out of import paths that the core package or non-rl tests exercise.
 - Determinism: the domain rules, the reference solver, and the verifier are fully deterministic. Scenario generation is seeded. Preserve this. Do not introduce unseeded randomness into these paths.
 

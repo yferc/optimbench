@@ -34,6 +34,16 @@ class ActionType(str, Enum):
     REFUSE = "refuse"
 
 
+class Arg(str, Enum):
+    ORDER_ID = "order_id"
+    VEHICLE_ID = "vehicle_id"
+    STOPS = "stops"
+    NODE_A = "a"
+    NODE_B = "b"
+    FILTER = "filter"
+    REASON = "reason"
+
+
 class DisruptionType(str, Enum):
     BREAKDOWN = "breakdown"
     RUSH_ORDER = "rush_order"

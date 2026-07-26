@@ -5,6 +5,7 @@ from typing import Any
 from optimbench.domain import (
     DEPOT,
     ActionType,
+    Arg,
     Decision,
     DispatchState,
     Disruption,
@@ -20,6 +21,8 @@ from optimbench.domain import (
     violations,
 )
 from optimbench.simulation.tools import TOOLSET, ToolSpec
+
+_FILTERS = {member.value: member for member in OrderFilter}
 
 
 class DispatchEnvironment:
@@ -44,10 +47,9 @@ class DispatchEnvironment:
     def tools(self) -> tuple[ToolSpec, ...]:
         return TOOLSET
 
-    def step(self, action: ActionType, args: dict[str, Any] | None = None) -> dict[str, Any]:
+    def step(self, action: ActionType, args: dict[Arg, Any]) -> dict[str, Any]:
         if self._state is None:
             raise RuntimeError("reset() must be called before step()")
-        args = args or {}
         result, accepted, note = self._dispatch_action(action, args)
         self._trajectory.record(Decision(self._turn, action, args, accepted, note))
         self._turn += 1
@@ -79,9 +81,8 @@ class DispatchEnvironment:
             "wave": state.wave,
             "waves_total": len(self._scenario.disruptions),
             "final_wave": self._wave_cursor >= len(self._scenario.disruptions),
-            "awaiting_commit": True,
             "feasible": is_feasible(state),
-            "depot": [float(c) for c in state.network.coordinates[DEPOT]],
+            "depot": _coord(state, DEPOT),
             "vehicles": [self._vehicle_view(v, state) for v in state.vehicles.values()],
             "unassigned_orders": [
                 self._order_view(o, state) for o in state.live_orders() if o.id not in assigned
@@ -89,8 +90,8 @@ class DispatchEnvironment:
         }
 
     # -- action dispatch ----------------------------------------------------
-    def _dispatch_action(self, action: ActionType, args: dict[str, Any]):
-        handler = {
+    def _dispatch_action(self, action: ActionType, args: dict[Arg, Any]):
+        return {
             ActionType.LIST_ORDERS: self._list_orders,
             ActionType.GET_VEHICLE: self._get_vehicle,
             ActionType.QUERY_TRAFFIC: self._query_traffic,
@@ -101,16 +102,13 @@ class DispatchEnvironment:
             ActionType.REROUTE: self._reroute,
             ActionType.DISPATCH: self._commit,
             ActionType.REFUSE: self._refuse,
-        }.get(action)
-        if handler is None:
-            return {}, False, f"unknown action {action}"
-        return handler(args)
+        }[action](args)
 
     def _list_orders(self, args):
-        try:
-            which = OrderFilter(args.get("filter", OrderFilter.LIVE))
-        except ValueError:
+        name = args[Arg.FILTER]
+        if name not in _FILTERS:
             return {}, False, "unknown filter"
+        which = _FILTERS[name]
         pool = list(self._state.orders.values())
         assigned = self._state.assigned_ids()
         selected = {
@@ -123,16 +121,16 @@ class DispatchEnvironment:
         return [self._order_view(o, self._state) for o in selected], True, which.value
 
     def _get_vehicle(self, args):
-        vehicle = self._vehicle(args.get("vehicle_id"))
-        if vehicle is None:
+        vehicle_id = args[Arg.VEHICLE_ID]
+        if vehicle_id not in self._state.vehicles:
             return {}, False, "no such vehicle"
-        return self._vehicle_view(vehicle, self._state), True, ""
+        return self._vehicle_view(self._state.vehicles[vehicle_id], self._state), True, ""
 
     def _query_traffic(self, args):
-        node_a, node_b = self._as_node(args.get("a")), self._as_node(args.get("b"))
-        if node_a is None or node_b is None:
+        a, b = args[Arg.NODE_A], args[Arg.NODE_B]
+        if not (self._in_bounds(a) and self._in_bounds(b)):
             return {}, False, "node out of range"
-        return {"true_time": float(self._state.network.true_time[node_a, node_b])}, True, ""
+        return {"true_time": float(self._state.network.true_time[a, b])}, True, ""
 
     def _check_feasibility(self, args):
         found = violations(self._state)
@@ -142,36 +140,35 @@ class DispatchEnvironment:
         }, True, ""
 
     def _assign_order(self, args):
-        order = self._order(args.get("order_id"))
-        vehicle = self._vehicle(args.get("vehicle_id"))
-        if order is None or vehicle is None:
+        order_id, vehicle_id = args[Arg.ORDER_ID], args[Arg.VEHICLE_ID]
+        if order_id not in self._state.orders or vehicle_id not in self._state.vehicles:
             return {}, False, "unknown order or vehicle"
+        order, vehicle = self._state.orders[order_id], self._state.vehicles[vehicle_id]
         if order.status is not OrderStatus.LIVE:
             return {}, False, "order not live"
         if not vehicle.in_service:
             return {}, False, "vehicle out of service"
-        self._detach(order.id)
-        vehicle.assigned.append(order.id)
+        self._detach(order_id)
+        vehicle.assigned.append(order_id)
         return {}, True, ""
 
     def _unassign_order(self, args):
-        return {}, self._detach(self._key(args.get("order_id"))), ""
+        return {}, self._detach(args[Arg.ORDER_ID]), ""
 
     def _set_route(self, args):
-        vehicle = self._vehicle(args.get("vehicle_id"))
-        stops = args.get("stops")
-        if vehicle is None or not isinstance(stops, list):
-            return {}, False, "unknown vehicle or bad stops"
-        parsed = [self._as_node(stop) for stop in stops]
-        if any(node is None for node in parsed):
-            return {}, False, "stop out of range or non-integer"
-        vehicle.route = parsed
+        vehicle_id, stops = args[Arg.VEHICLE_ID], args[Arg.STOPS]
+        if vehicle_id not in self._state.vehicles:
+            return {}, False, "unknown vehicle"
+        if any(not self._in_bounds(node) for node in stops):
+            return {}, False, "stop out of range"
+        self._state.vehicles[vehicle_id].route = list(stops)
         return {}, True, ""
 
     def _reroute(self, args):
-        vehicle = self._vehicle(args.get("vehicle_id"))
-        if vehicle is None:
+        vehicle_id = args[Arg.VEHICLE_ID]
+        if vehicle_id not in self._state.vehicles:
             return {}, False, "unknown vehicle"
+        vehicle = self._state.vehicles[vehicle_id]
         vehicle.route = self._nearest_route(vehicle)
         return {"route": vehicle.route}, True, ""
 
@@ -185,25 +182,13 @@ class DispatchEnvironment:
         return {"committed": True, "wave_advanced": False}, True, "final commit"
 
     def _refuse(self, args):
-        return {"reason": args.get("reason", "")}, True, "refused"
+        return {"reason": args[Arg.REASON]}, True, "refused"
 
     # -- mutation helpers ---------------------------------------------------
-    @staticmethod
-    def _key(value) -> str | None:
-        return value if isinstance(value, str) else None
+    def _in_bounds(self, node: int) -> bool:
+        return 0 <= node < self._state.network.size
 
-    def _vehicle(self, value) -> Vehicle | None:
-        return self._state.vehicles.get(self._key(value))
-
-    def _order(self, value) -> Order | None:
-        return self._state.orders.get(self._key(value))
-
-    def _as_node(self, value) -> int | None:
-        if isinstance(value, bool) or not isinstance(value, int):
-            return None
-        return value if 0 <= value < self._state.network.size else None
-
-    def _detach(self, order_id: str | None) -> bool:
+    def _detach(self, order_id: str) -> bool:
         removed = False
         for vehicle in self._state.vehicles.values():
             if order_id in vehicle.assigned:
@@ -212,9 +197,7 @@ class DispatchEnvironment:
         return removed
 
     def _busiest_vehicle(self) -> Vehicle | None:
-        candidates = [
-            v for v in self._state.vehicles.values() if v.in_service and v.assigned
-        ]
+        candidates = [v for v in self._state.vehicles.values() if v.in_service and v.assigned]
         if not candidates:
             return None
         return max(candidates, key=lambda v: (v.load(self._state.orders), v.id))
@@ -230,21 +213,19 @@ class DispatchEnvironment:
         elif disruption.type is DisruptionType.RUSH_ORDER:
             self._state.orders[disruption.order.id] = disruption.order
         elif disruption.type is DisruptionType.CANCELLATION:
-            order = self._state.orders.get(disruption.order_id)
-            if order is not None:
-                self._detach(order.id)
-                self._state.orders[order.id] = order.with_status(OrderStatus.CANCELLED)
+            order = self._state.orders[disruption.order_id]
+            self._detach(order.id)
+            self._state.orders[order.id] = order.with_status(OrderStatus.CANCELLED)
 
     def _nearest_route(self, vehicle: Vehicle) -> list[int]:
-        targets = [self._state.orders[o].node for o in vehicle.assigned]
-        route = [DEPOT]
-        remaining = list(dict.fromkeys(targets))
+        targets = list(dict.fromkeys(self._state.orders[o].node for o in vehicle.assigned))
         times = self._state.network.true_time
-        while remaining:
+        route = [DEPOT]
+        while targets:
             here = route[-1]
-            nxt = min(remaining, key=lambda node: times[here, node])
-            route.append(nxt)
-            remaining.remove(nxt)
+            nearest = min(targets, key=lambda node: times[here, node])
+            route.append(nearest)
+            targets.remove(nearest)
         route.append(DEPOT)
         return route
 
@@ -253,7 +234,7 @@ class DispatchEnvironment:
     def _order_view(order: Order, state: DispatchState) -> dict[str, Any]:
         return {
             "id": order.id, "node": order.node, "demand": order.demand,
-            "coord": [float(c) for c in state.network.coordinates[order.node]],
+            "coord": _coord(state, order.node),
             "window_open": order.window_open, "window_close": order.window_close,
             "priority": order.priority.value,
         }
@@ -268,13 +249,13 @@ class DispatchEnvironment:
         }
 
 
+def _coord(state: DispatchState, node: int) -> list[float]:
+    return [float(c) for c in state.network.coordinates[node]]
+
+
 def _load_centroid(vehicle: Vehicle, state: DispatchState) -> list[float]:
-    points = [
-        state.network.coordinates[state.orders[o].node]
-        for o in vehicle.assigned
-        if o in state.orders
-    ]
-    origin = state.network.coordinates[DEPOT] if not points else None
-    if origin is not None:
-        return [float(origin[0]), float(origin[1])]
+    nodes = [state.orders[o].node for o in vehicle.assigned if o in state.orders]
+    if not nodes:
+        return _coord(state, DEPOT)
+    points = [state.network.coordinates[node] for node in nodes]
     return [sum(float(p[i]) for p in points) / len(points) for i in (0, 1)]

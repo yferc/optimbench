@@ -1,5 +1,6 @@
 from optimbench.domain.enums import (
     ActionType,
+    Arg,
     Difficulty,
     DisruptionType,
     IntegrityFlag,
@@ -23,6 +24,7 @@ from optimbench.domain.trajectory import Decision, Trajectory
 __all__ = [
     "DEPOT",
     "ActionType",
+    "Arg",
     "Decision",
     "Difficulty",
     "DispatchState",
