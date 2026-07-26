@@ -1,5 +1,10 @@
 # OptimBench
 
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Ruff](https://img.shields.io/badge/lint-ruff-261230)
+![Reward](https://img.shields.io/badge/reward-deterministic%20(RLVR)-orange)
+
 Verifiable environments for evaluating optimization and planning agents under real-world constraints.
 
 Modern language-model agents can reason, but it is still hard to measure whether they can *reliably operate under constraints*: limited resources, hard deadlines, and conditions that change mid-task. Task-completion scores hide how an agent fails, and most benchmarks cannot tell a genuinely good solution from one that quietly gamed the grader.
@@ -113,6 +118,23 @@ python scripts/run_llm.py --difficulty easy --seeds 5
 ## Roadmap
 
 OptimBench is the first member of a planned family of verifiable optimization environments (scheduling, packing, graph problems) sharing one generator, verifier, and metric suite. See `papers/benchmark_card.md` for the task definition, failure modes, and limitations.
+
+## Citation
+
+```bibtex
+@software{ferchichi_optimbench_2026,
+  author  = {Ferchichi, Yahia},
+  title   = {OptimBench: verifiable environments for evaluating optimization and planning agents},
+  year    = {2026},
+  version = {0.0.1},
+  url     = {https://github.com/yferc/optimbench}
+}
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and the engineering standard, and
+[CLAUDE.md](CLAUDE.md) for the full conventions.
 
 ## License
 

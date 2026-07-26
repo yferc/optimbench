@@ -11,9 +11,22 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Yahia Ferchichi" }]
 keywords = ["evaluation", "reinforcement-learning", "optimization", "agents", "verifier", "rlvr", "benchmark"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 # imageio + pygame are runtime deps of the renderer and scripts, so they are not
 # optional: a bare `uv run` (what PyCharm calls) then always has what a script needs.
 dependencies = ["numpy>=1.23", "imageio>=2.31", "imageio-ffmpeg>=0.4", "pygame>=2.5"]
+
+[project.urls]
+Homepage = "https://github.com/yferc/optimbench"
+Repository = "https://github.com/yferc/optimbench"
+Issues = "https://github.com/yferc/optimbench/issues"
+Changelog = "https://github.com/yferc/optimbench/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 rl = ["torch>=2.0"]                        # only to train or run the learned agent

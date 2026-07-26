@@ -49,6 +49,47 @@ disruption: total demand is bounded so a solution exists on the remaining fleet
 after a breakdown, and time windows are set from a global horizon so a
 capacity-feasible plan is always time-feasible.
 
+## Intended use and out-of-scope use
+Intended: measuring whether an agent (LLM, learned policy, or heuristic) can operate a
+constrained optimization problem reliably, recover from mid-episode disruptions, and reach
+a low-cost feasible plan without gaming the grader. It is meant for comparing agents under
+a deterministic, reproducible reward.
+
+Out of scope: it is not a proof of optimality (the reference is a strong heuristic, not an
+exact solver), not a general planning or reasoning benchmark, and not a real-world logistics
+simulator (travel times, demand, and disruptions are synthetic). Scores are only comparable
+within one `BENCHMARK_VERSION`.
+
+## Instance composition
+Instances are procedurally generated and seeded, so there is no collected data, no PII, and
+no licensing constraint, and the pool is effectively unbounded. Each difficulty fixes a
+distribution over the generation knobs:
+
+| difficulty | nodes | vehicles | orders | capacity | slack | disruption waves | offline vehicles | stale traffic |
+|------------|-------|----------|--------|----------|-------|------------------|------------------|---------------|
+| easy       | 12    | 3        | 8      | 12       | 1.40  | 1                | 0                | 10%           |
+| medium     | 20    | 4        | 14     | 12       | 1.25  | 2                | 1                | 15%           |
+| hard       | 30    | 5        | 22     | 12       | 1.12  | 3                | 1                | 20%           |
+
+Slack is fleet capacity over total demand (lower is tighter). As difficulty rises the fleet
+gets tighter, more disruption waves hit, and more of the observed travel-time matrix is stale.
+
+## Reproducibility
+Every reported number in this repo uses the held-out test seeds `range(50)` per difficulty
+(`TEST_SEEDS` in `optimbench/evaluation/splits.py`). Training draws disjoint `TRAIN_SEEDS`
+and selects checkpoints on disjoint `VAL_SEEDS`, so no reported number is seen during model
+selection. Reproduce the baseline table and an LLM run with:
+
+```bash
+uv pip install -e ".[dev,rl]"
+python scripts/benchmark.py --seeds 50
+python scripts/run_llm.py --difficulty easy --seeds 5
+```
+
+The domain rules, reference solver, and verifier are deterministic and the environment holds
+no RNG, so a `(seed, difficulty, BENCHMARK_VERSION)` triple reproduces a run exactly. Pin the
+numpy and torch versions from `pyproject.toml` when reporting.
+
 ## Limitations
 - Time windows are loose in v1 (capacity, coverage, depot-anchoring and recovery are
   the binding constraints); binding windows that preserve the feasibility guarantee
@@ -61,3 +102,10 @@ capacity-feasible plan is always time-feasible.
   committing and feasibly resolving every wave), so it is a transparency indicator,
   not a gate.
 - Single problem family (vehicle dispatch); scheduling and packing members are planned.
+
+## Versioning and maintenance
+The scoring is versioned by `BENCHMARK_VERSION` (`optimbench/domain/version.py`), currently
+`1.0`. Any change to the feasibility gate, the disruption model, the reference solver, or a
+score formula bumps it, which makes old and new numbers non-comparable by construction rather
+than by footnote. The planned v2 change is binding time windows (see Limitations). Issues and
+questions: https://github.com/yferc/optimbench/issues.

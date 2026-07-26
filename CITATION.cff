@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use OptimBench, please cite it as below."
+title: "OptimBench: verifiable environments for evaluating optimization and planning agents"
+authors:
+  - family-names: Ferchichi
+    given-names: Yahia
+version: 0.0.1
+license: MIT
+repository-code: "https://github.com/yferc/optimbench"
+url: "https://github.com/yferc/optimbench"
+keywords:
+  - reinforcement-learning
+  - verifiable-rewards
+  - rlvr
+  - optimization
+  - benchmark
+  - agents
