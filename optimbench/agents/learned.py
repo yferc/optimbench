@@ -56,10 +56,12 @@ class LearnedDispatcher:
 
         return ActionType.DISPATCH, {}
 
-    def _assign(self, unassigned, vehicles) -> tuple[ActionType, dict[Arg, Any]]:
-        fitting = self._feasible_pairs(unassigned, vehicles)
-        scores = self._policy(torch.stack([features for _, _, features in fitting]))
-        order, vehicle, _ = fitting[self._choose(scores)]
+    def _assign(
+        self, unassigned: list[dict[Field, Any]], vehicles: list[dict[Field, Any]]
+    ) -> tuple[ActionType, dict[Arg, Any]]:
+        pairs = self._feasible_pairs(unassigned, vehicles)
+        scores = self._policy(torch.stack([features for _, _, features in pairs]))
+        order, vehicle, _ = pairs[self._choose(scores)]
         return ActionType.ASSIGN_ORDER, {Arg.ORDER_ID: order[Field.ID], Arg.VEHICLE_ID: vehicle[Field.ID]}
 
     def _choose(self, scores: torch.Tensor) -> int:
@@ -71,7 +73,9 @@ class LearnedDispatcher:
         return int(choice)
 
     @staticmethod
-    def _feasible_pairs(unassigned, vehicles):
+    def _feasible_pairs(
+        unassigned: list[dict[Field, Any]], vehicles: list[dict[Field, Any]]
+    ) -> list[tuple[dict[Field, Any], dict[Field, Any], torch.Tensor]]:
         pairs = []
         for order in unassigned:
             fitting = [v for v in vehicles if v[Field.CAPACITY] - v[Field.LOAD] >= order[Field.DEMAND]]
@@ -87,7 +91,7 @@ def _pair_features(order: dict[Field, Any], vehicle: dict[Field, Any]) -> torch.
         order[Field.COORD][0] / _WORLD,
         order[Field.COORD][1] / _WORLD,
         order[Field.DEMAND] / capacity,
-        1.0 if order[Field.PRIORITY] == Priority.RUSH.value else 0.0,
+        1.0 if order[Field.PRIORITY] is Priority.RUSH else 0.0,
         (capacity - vehicle[Field.LOAD]) / capacity,
         vehicle[Field.CENTROID][0] / _WORLD,
         vehicle[Field.CENTROID][1] / _WORLD,

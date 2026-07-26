@@ -16,7 +16,7 @@ from optimbench.evaluation.metrics import (
 )
 from optimbench.generation import DispatchScenarioGenerator
 from optimbench.simulation import DispatchEnvironment
-from optimbench.verification import DispatchVerifier
+from optimbench.verification import DispatchVerifier, VerificationResult
 
 
 @dataclass(frozen=True)
@@ -68,9 +68,9 @@ class Evaluator:
         feasible: list[float] = []
 
         for seed in seeds:
-            result, commit_feasibility = self._run_episode(make_agent(), seed, difficulty)
+            result, wave_feasibility = self._run_episode(make_agent(), seed, difficulty)
             tasks.append(task_score(result))
-            robustness.append(robustness_score(commit_feasibility))
+            robustness.append(robustness_score(wave_feasibility))
             integrity.append(integrity_score(result))
             feasible.append(1.0 if result.feasible else 0.0)
 
@@ -83,7 +83,9 @@ class Evaluator:
             integrity=MetricSummary.of(integrity),
         )
 
-    def _run_episode(self, agent: Agent, seed: int, difficulty: Difficulty):
+    def _run_episode(
+        self, agent: Agent, seed: int, difficulty: Difficulty
+    ) -> tuple[VerificationResult, list[bool]]:
         scenario = self._generator.generate(seed, difficulty)
         env = DispatchEnvironment()
         env.reset(scenario)

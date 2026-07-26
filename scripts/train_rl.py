@@ -48,7 +48,7 @@ def rollout(scenario, agent) -> float:
 
 def _mean_task(policy: AssignmentPolicy, difficulty: Difficulty, seeds: range) -> float:
     with torch.no_grad():
-        scores = [rollout(GEN.generate(s, difficulty), LearnedDispatcher(policy)) for s in seeds]
+        scores = [rollout(GEN.generate(seed, difficulty), LearnedDispatcher(policy)) for seed in seeds]
     return sum(scores) / len(scores)
 
 

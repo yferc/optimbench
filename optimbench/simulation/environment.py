@@ -55,6 +55,7 @@ class DispatchEnvironment:
         self._state: DispatchState | None = None
         self._trajectory = Trajectory()
         self._turn = 0
+        self._wave_turns = 0
         self._wave_cursor = 0
         self._done = False
         self._truncated = False
@@ -64,6 +65,7 @@ class DispatchEnvironment:
         self._state = scenario.state
         self._trajectory = Trajectory()
         self._turn = 0
+        self._wave_turns = 0
         self._wave_cursor = 0
         self._done = False
         self._truncated = False
@@ -78,7 +80,10 @@ class DispatchEnvironment:
         outcome = self._route_action(action, args)
         self._trajectory.record(Decision(self._turn, action, args, outcome.accepted, outcome.note))
         self._turn += 1
-        if not self._done and self._turn > self._max_turns_per_wave * (len(self._scenario.disruptions) + 1):
+        self._wave_turns += 1
+        if action is ActionType.DISPATCH and outcome.accepted:
+            self._wave_turns = 0  # a committed wave resets the per-wave turn budget
+        if not self._done and self._wave_turns > self._max_turns_per_wave:
             self._done = True
             self._truncated = True
         return {
@@ -164,21 +169,21 @@ class DispatchEnvironment:
     def _get_vehicle(self, args) -> ActionOutcome:
         vehicle_id = args[Arg.VEHICLE_ID]
         if vehicle_id not in self._state.vehicles:
-            return ActionOutcome(False, Note.NO_SUCH_VEHICLE)
+            return ActionOutcome(False, Note.UNKNOWN_VEHICLE)
         return ActionOutcome(True, result=self._vehicle_view(self._state.vehicles[vehicle_id], self._state))
 
     def _query_traffic(self, args) -> ActionOutcome:
-        a, b = args[Arg.NODE_A], args[Arg.NODE_B]
-        if not (self._in_bounds(a) and self._in_bounds(b)):
+        node_a, node_b = args[Arg.NODE_A], args[Arg.NODE_B]
+        if not (self._in_bounds(node_a) and self._in_bounds(node_b)):
             return ActionOutcome(False, Note.NODE_OUT_OF_RANGE)
-        travel = float(self._state.network.observed_time[a, b])
+        travel = float(self._state.network.observed_time[node_a, node_b])
         return ActionOutcome(True, result={Field.OBSERVED_TIME: travel})
 
     def _check_feasibility(self, args) -> ActionOutcome:
         found = violations(self._state)
         return ActionOutcome(True, result={
             Field.FEASIBLE: not found,
-            Field.VIOLATIONS: [{Field.TYPE: v.type.value, Field.REF: v.ref} for v in found],
+            Field.VIOLATIONS: [{Field.TYPE: v.type, Field.REF: v.ref} for v in found],
         })
 
     def _assign_order(self, args) -> ActionOutcome:
@@ -212,7 +217,7 @@ class DispatchEnvironment:
             return ActionOutcome(False, Note.UNKNOWN_VEHICLE)
         vehicle = self._state.vehicles[vehicle_id]
         vehicle.route = self._nearest_route(vehicle)
-        return ActionOutcome(True, result={Field.ROUTE: vehicle.route})
+        return ActionOutcome(True, result={Field.ROUTE: list(vehicle.route)})
 
     def _commit(self, args) -> ActionOutcome:
         if self._wave_cursor < len(self._scenario.disruptions):
@@ -230,6 +235,7 @@ class DispatchEnvironment:
 
     # -- mutation helpers ---------------------------------------------------
     def _in_bounds(self, node: int) -> bool:
+        # bool is an int subclass; reject True/False so they cannot index the matrix as 0/1
         return isinstance(node, int) and not isinstance(node, bool) and 0 <= node < self._state.network.size
 
     def _detach(self, order_id: str) -> bool:
@@ -244,6 +250,7 @@ class DispatchEnvironment:
         candidates = [v for v in self._state.vehicles.values() if v.in_service and v.assigned]
         if not candidates:
             return None
+        # id breaks load ties so the breakdown target is deterministic across replays
         return max(candidates, key=lambda v: (v.load(self._state.orders), v.id))
 
     def _apply(self, disruption: Disruption) -> None:
@@ -280,7 +287,7 @@ class DispatchEnvironment:
             Field.ID: order.id, Field.NODE: order.node, Field.DEMAND: order.demand,
             Field.COORD: _coord(state, order.node),
             Field.WINDOW_OPEN: order.window_open, Field.WINDOW_CLOSE: order.window_close,
-            Field.PRIORITY: order.priority.value,
+            Field.PRIORITY: order.priority,
         }
 
     @staticmethod

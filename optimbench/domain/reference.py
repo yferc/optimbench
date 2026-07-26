@@ -46,6 +46,8 @@ def _first_vehicle_with_room(loads: list[int], capacities: list[int], demand: in
     for index, (load, capacity) in enumerate(zip(loads, capacities)):
         if load + demand <= capacity:
             return index
+    # no vehicle fits; overflow into the least-loaded one (the reference is a denominator,
+    # so a slightly over-capacity grouping only makes the reference cost a touch looser)
     return min(range(len(loads)), key=lambda k: loads[k])
 
 

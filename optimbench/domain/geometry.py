@@ -5,9 +5,9 @@ import numpy as np
 from optimbench.domain.models import DispatchState, RoadNetwork
 
 
-def euclidean_time_matrix(coordinates: np.ndarray, speed: float = 1.0) -> np.ndarray:
+def euclidean_time_matrix(coordinates: np.ndarray) -> np.ndarray:
     delta = coordinates[:, None, :] - coordinates[None, :, :]
-    return np.sqrt((delta**2).sum(axis=-1)) / speed
+    return np.sqrt((delta**2).sum(axis=-1))
 
 
 def route_time(network: RoadNetwork, route: list[int]) -> float:

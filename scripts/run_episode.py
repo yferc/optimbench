@@ -76,7 +76,7 @@ def main() -> None:
 
     out = ROOT / args.out_dir / agent_type.value
     out.parent.mkdir(parents=True, exist_ok=True)
-    half_res = [frame[::2, ::2] for frame in frames]  # halve resolution to keep the GIF small
+    half_res = [frame[::2, ::2] for frame in frames]  # smaller GIF than the full-res MP4
     imageio.mimsave(f"{out}.gif", half_res, fps=args.fps, loop=0)
     imageio.mimsave(f"{out}.mp4", frames, fps=args.fps, quality=8)
     log.info("%s: %s.gif / .mp4 (%d frames)", agent_type.value, out, len(frames))

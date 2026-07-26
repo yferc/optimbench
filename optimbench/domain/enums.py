@@ -115,7 +115,6 @@ class Note(str, Enum):
 
     NONE = ""
     UNKNOWN_FILTER = "unknown filter"
-    NO_SUCH_VEHICLE = "no such vehicle"
     UNKNOWN_VEHICLE = "unknown vehicle"
     UNKNOWN_ORDER_OR_VEHICLE = "unknown order or vehicle"
     ORDER_NOT_LIVE = "order not live"

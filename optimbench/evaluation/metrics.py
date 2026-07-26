@@ -38,7 +38,7 @@ def bootstrap_ci(values: list[float], samples: int = 2000, alpha: float = 0.05) 
     data = np.asarray(values, dtype=float)
     if data.size == 0:
         return (0.0, 0.0)
-    rng = np.random.default_rng(0)
+    rng = np.random.default_rng(0)  # fixed seed so the reported confidence interval is reproducible
     draws = data[rng.integers(0, data.size, size=(samples, data.size))].mean(axis=1)
     return float(np.quantile(draws, alpha / 2)), float(np.quantile(draws, 1 - alpha / 2))
 
