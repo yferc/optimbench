@@ -1,3 +1,5 @@
+import pytest
+
 from optimbench.agents import LLMAgent
 from optimbench.domain import ActionType, Difficulty, Field
 from optimbench.generation import DispatchScenarioGenerator
@@ -31,6 +33,31 @@ def test_unparseable_reply_maps_to_invalid():
 def test_unknown_action_maps_to_invalid():
     agent = LLMAgent(_ScriptedClient(['{"action": "teleport", "args": {}}']))
     assert agent.act({})[0] is ActionType.INVALID
+
+
+_ADVERSARIAL = [
+    "no json here",
+    "not even close",
+    '{"nonsense": true}',                                              # no action key
+    '{"action": {"x": 1}}',                                           # non-hashable action value
+    '{"action": ["assign_order"]}',                                   # list action value
+    '{"action": "teleport", "args": {}}',                             # unknown action
+    '{"action": "assign_order", "args": {"order_id": "ord_0"}}',      # missing vehicle_id
+    '{"action": "list_orders", "args": {"filter": ["live"]}}',        # non-scalar filter
+    '{"action": "get_vehicle", "args": {"vehicle_id": {"a": 1}}}',    # non-scalar id
+    '{"action": "assign_order", "args": {"order_id": ["x"], "vehicle_id": "v"}}',
+    '{"action": "set_route", "args": {"vehicle_id": "veh_0", "stops": 5}}',  # stops not a list
+]
+
+
+@pytest.mark.parametrize("reply", _ADVERSARIAL)
+def test_adversarial_replies_map_to_invalid_and_never_crash_the_env(reply):
+    env = DispatchEnvironment()
+    env.reset(GEN.generate(0, Difficulty.EASY))
+    agent = LLMAgent(_ScriptedClient([reply]))
+    action, args = agent.act(env.observation())
+    assert action is ActionType.INVALID
+    assert env.step(action, args)[Field.ACCEPTED] is False  # rejected, and no exception raised
 
 
 def test_missing_required_arg_is_rejected_not_crashing():

@@ -115,9 +115,14 @@ def parse_tool_call(reply: str, action_by_name: dict[str, ActionType]) -> tuple[
         call = json.loads(match.group())
     except json.JSONDecodeError:
         return ActionType.INVALID, {}
-    if ToolCallKey.ACTION not in call or call[ToolCallKey.ACTION] not in action_by_name:
+    if not isinstance(call, dict) or ToolCallKey.ACTION not in call:
         return ActionType.INVALID, {}
-    action = action_by_name[call[ToolCallKey.ACTION]]
+    action_name = call[ToolCallKey.ACTION]
+    # isinstance before the membership test: a non-scalar action value would otherwise be
+    # hashed here and crash the run on an untrusted reply
+    if not isinstance(action_name, str) or action_name not in action_by_name:
+        return ActionType.INVALID, {}
+    action = action_by_name[action_name]
     args = _to_args(call[ToolCallKey.ARGS] if ToolCallKey.ARGS in call else {})
     if not _complete_call(action, args):
         return ActionType.INVALID, {}
@@ -125,9 +130,19 @@ def parse_tool_call(reply: str, action_by_name: dict[str, ActionType]) -> tuple[
 
 
 def _complete_call(action: ActionType, args: dict[Arg, Any]) -> bool:
-    if any(required not in args for required in _REQUIRED_ARGS[action]):
-        return False
-    return Arg.STOPS not in args or isinstance(args[Arg.STOPS], list)
+    # Every required arg must be present and well-typed. Ids and the filter are scalars that the
+    # environment later hashes against its dicts, so a list or object here must be rejected now
+    # rather than crash the handler. STOPS is a list; its elements are range-checked downstream.
+    for required in _REQUIRED_ARGS[action]:
+        if required not in args:
+            return False
+        value = args[required]
+        if required is Arg.STOPS:
+            if not isinstance(value, list):
+                return False
+        elif isinstance(value, bool) or not isinstance(value, (str, int)):
+            return False
+    return True
 
 
 class LLMAgent:
