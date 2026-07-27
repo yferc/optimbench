@@ -16,6 +16,11 @@ is versioned separately by `BENCHMARK_VERSION` (see `optimbench/domain/version.p
   to 1.1, so v1.0 and v1.1 numbers are not comparable.
 
 ### Added
+- Offline optimality-gap analysis (`optimbench/analysis/`, `scripts/optimality_report.py`, the
+  `solver` extra): an OR-Tools CVRP optimum used only to report how tight the heuristic reference
+  (the task-score denominator) is. Measured gap: the reference sits about 14% above optimal on
+  easy and medium, 19% on hard. Kept strictly out of the scoring path, so scoring stays
+  deterministic and solver-free.
 - `scripts/replay.py`: replay one episode as a readable narrative (each mutation and commit, when
   a disruption hits, which wave went infeasible, and the final verdict with the integrity flag that
   tripped), for any agent. The qualitative companion to the leaderboard.

@@ -96,7 +96,12 @@ numpy and torch versions from `pyproject.toml` when reporting.
   are planned for a later version.
 - The reference is a sweep + nearest-neighbour + 2-opt heuristic, not a proven
   optimum, so `task` measures the gap to a strong baseline rather than a true
-  optimality gap; an agent that beats the heuristic simply saturates at 1.0.
+  optimality gap; an agent that beats the heuristic simply saturates at 1.0. The gap
+  is quantified offline against an OR-Tools optimum (`scripts/optimality_report.py`,
+  see `papers/optimality_gap.md`): the reference sits about 14% above optimal on easy
+  and medium and 19% on hard, so `task` is mildly optimistic, more so on hard. The
+  solver is kept out of the scoring path on purpose, to keep scoring deterministic and
+  dependency-light.
 - The invalid-action-spam flag is a soft signal: an agent can dilute its rejection
   rate with accepted no-ops. It cannot inflate a score (integrity also requires
   committing and feasibly resolving every wave), so it is a transparency indicator,

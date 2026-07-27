@@ -19,7 +19,7 @@ uv venv
 uv pip install -e ".[dev,rl]"
 ```
 
-The extras are: `dev` (pytest and ruff, ruff pinned to 0.16.0), `rl` (torch, only to train or run the learned agent), and `hub` (verifiers, only for the Prime Intellect hub adapter in `optimbench/hub/`). The rendering deps (imageio, imageio-ffmpeg, pygame) are base dependencies, not an extra, so a bare install can always run the scripts. Install only the extras a task needs.
+The extras are: `dev` (pytest and ruff, ruff pinned to 0.16.0), `rl` (torch, only to train or run the learned agent), `hub` (verifiers, only for the Prime Intellect hub adapter in `optimbench/hub/`), and `solver` (ortools, only for the offline optimality-gap analysis in `optimbench/analysis/`). The rendering deps (imageio, imageio-ffmpeg, pygame) are base dependencies, not an extra, so a bare install can always run the scripts. Install only the extras a task needs.
 
 Run the tests headless. pygame requires a video driver, so set `SDL_VIDEODRIVER=dummy` (this is exactly what CI does):
 
@@ -42,6 +42,7 @@ uv run python scripts/train_rl.py --episodes 3000      # train the policy, write
 uv run python scripts/run_llm.py --difficulty easy     # evaluate an LLM agent through the tool API
 uv run python scripts/export_trajectories.py           # dump expert trajectories as JSONL for SFT
 uv run python scripts/replay.py --agent random         # narrate one episode: decisions, disruption, verdict
+uv run python scripts/optimality_report.py             # how tight the heuristic reference is vs an OR-Tools optimum
 ```
 
 `run_episode.py --agent learned` needs the `rl` extra and a trained model at `models/assignment_policy.pt`. The `llm` agent needs the `OPTIMBENCH_LLM_BASE_URL`, `OPTIMBENCH_LLM_API_KEY`, and `OPTIMBENCH_LLM_MODEL` environment variables (see the docstring in `scripts/run_llm.py`).
@@ -63,7 +64,7 @@ optimbench/
 
 The one hard rule: every layer imports only from `optimbench.domain`. Layers do not import each other. In particular the verifier never imports the simulation, it inspects the final state and trajectory only. `domain` itself depends on nothing but numpy. Keep it that way.
 
-The exceptions are the composition roots: `evaluation/`, `scripts/`, and `hub/` (the verifiers adapter). They exist to wire the system together (generator, environment, verifier, agents) and may import several layers. `hub/` additionally imports the optional `verifiers` dependency, so, like the learned agent's torch import, it must stay out of every path the core package or a non-hub test loads: `optimbench/__init__` must never import it, and its test uses `pytest.importorskip("verifiers")`. Nothing else may cross layers.
+The exceptions are the composition roots: `evaluation/`, `scripts/`, `hub/` (the verifiers adapter), and `analysis/` (the OR-Tools optimality report). They exist to wire the system together (generator, environment, verifier, agents) and may import several layers. `hub/` and `analysis/` additionally import optional dependencies (`verifiers` and `ortools`), so, like the learned agent's torch import, they must stay out of every path the core package or a default test loads: `optimbench/__init__` must never import them, and their tests use `pytest.importorskip(...)`. In particular `analysis/` is never in the scoring path: the verifier and task score stay deterministic and solver-free, and the optimum is only ever compared against the heuristic reference offline. Nothing else may cross layers.
 
 ## Coding conventions
 

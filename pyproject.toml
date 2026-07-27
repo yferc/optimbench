@@ -31,6 +31,7 @@ Changelog = "https://github.com/yferc/optimbench/blob/main/CHANGELOG.md"
 [project.optional-dependencies]
 rl = ["torch>=2.0"]                        # only to train or run the learned agent
 hub = ["verifiers>=0.1.8"]                 # the Prime Intellect hub / verifiers adapter
+solver = ["ortools>=9.7"]                  # only for the offline optimality-gap analysis
 dev = ["pytest>=7.0", "ruff==0.16.0"]
 
 [tool.setuptools.packages.find]
