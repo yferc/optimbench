@@ -16,3 +16,8 @@ docs/media/*
 
 models/
 data/
+
+# prime CLI local state and eval outputs
+environments/*/.prime/
+environments/*/outputs/
+environments/*/dist/

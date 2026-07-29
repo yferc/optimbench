@@ -106,6 +106,12 @@ numpy and torch versions from `pyproject.toml` when reporting.
   rate with accepted no-ops. It cannot inflate a score (integrity also requires
   committing and feasibly resolving every wave), so it is a transparency indicator,
   not a gate.
+- Headroom at the top of `medium` is now small: a frontier model (claude-opus-5) scores 0.917
+  zero-shot on the combined reward there, above both the greedy heuristic (0.762) and the trained
+  policy (0.870). Medium still separates mid-tier and small models across the full range, but for
+  frontier models the discriminating tier is `hard`, and calibrating the tiers by measured pass
+  rate is the planned fix. Reported LLM numbers are a three-seed pilot at provider-default
+  sampling, not the 20x3 reproducible protocol, so treat close rankings as unresolved.
 - Single problem family (vehicle dispatch); scheduling and packing members are planned.
 
 ## Versioning and maintenance
