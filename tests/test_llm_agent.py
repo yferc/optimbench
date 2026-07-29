@@ -1,6 +1,7 @@
 import pytest
 
 from optimbench.agents import LLMAgent
+from optimbench.agents.llm import render_state
 from optimbench.domain import ActionType, Difficulty, Field
 from optimbench.generation import DispatchScenarioGenerator
 from optimbench.simulation import DispatchEnvironment
@@ -68,6 +69,23 @@ def test_missing_required_arg_is_rejected_not_crashing():
     action, args = agent.act(env.observation())
     assert action is ActionType.INVALID
     assert env.step(action, args)[Field.ACCEPTED] is False
+
+
+def test_render_state_surfaces_rejection_feedback():
+    env = DispatchEnvironment()
+    env.reset(GEN.generate(0, Difficulty.HARD))
+    offline = next(v for v in env.state.vehicles.values() if not v.in_service)
+    order = env.observation()[Field.UNASSIGNED_ORDERS][0][Field.ID]
+    env.step(ActionType.ASSIGN_ORDER, {"order_id": order, "vehicle_id": offline.id})
+    rendered = render_state(env.observation())
+    assert "LAST ACTION REJECTED" in rendered
+    assert "vehicle out of service" in rendered
+
+
+def test_render_state_omits_feedback_on_a_clean_turn():
+    env = DispatchEnvironment()
+    env.reset(GEN.generate(0, Difficulty.EASY))
+    assert "LAST ACTION" not in render_state(env.observation())
 
 
 def test_llm_agent_drives_an_episode_to_completion():

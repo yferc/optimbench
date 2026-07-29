@@ -1,7 +1,7 @@
 import pytest
 
 from optimbench.agents import GreedyDispatcher
-from optimbench.domain import ActionType, Difficulty
+from optimbench.domain import ActionType, Difficulty, Note
 from optimbench.generation import DispatchScenarioGenerator
 from optimbench.simulation import DispatchEnvironment
 
@@ -36,6 +36,26 @@ def test_assign_to_out_of_service_is_rejected():
     order = env.observation()["unassigned_orders"][0]["id"]
     out = env.step(ActionType.ASSIGN_ORDER, {"order_id": order, "vehicle_id": offline.id})
     assert out["accepted"] is False
+
+
+def test_rejected_action_surfaces_note_in_next_observation():
+    # a rejected action tells the agent why in the following observation, so it can recover
+    # instead of blindly repeating the invalid call
+    env = DispatchEnvironment()
+    env.reset(GEN.generate(0, Difficulty.HARD))
+    offline = next(v for v in env.state.vehicles.values() if not v.in_service)
+    order = env.observation()["unassigned_orders"][0]["id"]
+    env.step(ActionType.ASSIGN_ORDER, {"order_id": order, "vehicle_id": offline.id})
+    last = env.observation()["last_action"]
+    assert last["accepted"] is False
+    assert last["note"] == Note.VEHICLE_OUT_OF_SERVICE.value
+
+
+def test_reset_and_clean_read_report_no_last_action():
+    env = _fresh()
+    assert "last_action" not in env.observation()
+    env.step(ActionType.LIST_ORDERS, {"filter": "all"})
+    assert "last_action" not in env.observation()
 
 
 def test_reroute_covers_assigned_nodes():

@@ -59,6 +59,7 @@ class DispatchEnvironment:
         self._wave_cursor = 0
         self._done = False
         self._truncated = False
+        self._last_outcome: ActionOutcome | None = None
 
     def reset(self, scenario: Scenario) -> dict[Field, Any]:
         self._scenario = scenario
@@ -69,6 +70,7 @@ class DispatchEnvironment:
         self._wave_cursor = 0
         self._done = False
         self._truncated = False
+        self._last_outcome = None
         return self.observation()
 
     def tools(self) -> tuple[ToolSpec, ...]:
@@ -78,6 +80,7 @@ class DispatchEnvironment:
         if self._state is None:
             raise RuntimeError("reset() must be called before step()")
         outcome = self._route_action(action, args)
+        self._last_outcome = outcome  # surfaced in the next observation so the agent sees why an action was rejected
         self._trajectory.record(Decision(self._turn, action, args, outcome.accepted, outcome.note))
         self._turn += 1
         self._wave_turns += 1
@@ -122,7 +125,7 @@ class DispatchEnvironment:
     def observation(self) -> dict[Field, Any]:
         state = self._state
         assigned = state.assigned_ids()
-        return {
+        observation = {
             Field.WAVE: state.wave,
             Field.WAVES_TOTAL: len(self._scenario.disruptions),
             Field.FINAL_WAVE: self._wave_cursor >= len(self._scenario.disruptions),
@@ -133,6 +136,19 @@ class DispatchEnvironment:
                 self._order_view(o, state) for o in state.live_orders() if o.id not in assigned
             ],
         }
+        last_action = self._last_action_view()
+        if last_action is not None:
+            observation[Field.LAST_ACTION] = last_action
+        return observation
+
+    def _last_action_view(self) -> dict[Field, Any] | None:
+        # Report the previous action's outcome only when it carries information the agent should
+        # react to: a rejection (so it stops repeating an invalid call) or a noted event such as a
+        # disruption landing. A plain accepted read/mutation says nothing new and is left off.
+        outcome = self._last_outcome
+        if outcome is None or (outcome.accepted and outcome.note is Note.NONE):
+            return None
+        return {Field.ACCEPTED: outcome.accepted, Field.NOTE: outcome.note.value}
 
     # -- action routing -----------------------------------------------------
     def _route_action(self, action: ActionType, args: dict[Arg, Any]) -> ActionOutcome:

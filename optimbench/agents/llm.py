@@ -120,7 +120,21 @@ def render_state(observation: dict[Field, Any], tools: tuple[ToolSpec, ...] = TO
         f"  {tool.action.value}({', '.join(a.value for a in tool.args)}): {tool.summary}"
         for tool in tools
     )
-    return f"TOOLS:\n{lines}\n\nSTATE:\n{json.dumps(observation, separators=(',', ':'))}"
+    feedback = _last_action_line(observation)
+    return f"TOOLS:\n{lines}\n{feedback}\nSTATE:\n{json.dumps(observation, separators=(',', ':'))}"
+
+
+def _last_action_line(observation: dict[Field, Any]) -> str:
+    # Restate the previous action's outcome as a salient line above the raw STATE json, so a model
+    # that ignores the last_action field still sees why a rejected call had no effect and stops
+    # repeating it. Empty (no extra blank line) when there is nothing to report.
+    if Field.LAST_ACTION not in observation:
+        return ""
+    last_action = observation[Field.LAST_ACTION]
+    note = last_action[Field.NOTE]
+    if not last_action[Field.ACCEPTED]:
+        return f"\nLAST ACTION REJECTED ({note}): it had no effect, so do not repeat it; choose a different action.\n"
+    return f"\nLAST ACTION: {note}.\n"
 
 
 _REQUIRED_ARGS: dict[ActionType, tuple[Arg, ...]] = {tool.action: tool.args for tool in TOOLSET}

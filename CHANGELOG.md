@@ -46,6 +46,14 @@ is versioned separately by `BENCHMARK_VERSION` (see `optimbench/domain/version.p
 - `CONTRIBUTING.md`, `CITATION.cff`, and this changelog.
 
 ### Changed
+- Rejected and noted actions now report back to the agent. The environment already computed an
+  explanatory note for every outcome (out-of-service vehicle, unknown id, node out of range,
+  malformed call, disruption applied), but both the local runner and the hub adapter discarded it
+  and re-rendered only the state, so an LLM agent could not tell an accepted action from a rejected
+  one. The observation now carries the last action's outcome and `render_state` surfaces it as a
+  salient line, so a model stops blindly repeating an invalid call. This is agent feedback only:
+  the deterministic scoring, feasibility rules, reference solve, and BENCHMARK_VERSION are
+  unchanged; the greedy, learned, and reference agents are unaffected.
 - The LLM system prompt now derives its example tool call from the enums, so the schema the
   model is told to emit cannot drift from the keys the parser reads.
 - The `Agent` protocol and LLM agent are typed with the `Field` and `Arg` enums, matching

@@ -60,6 +60,7 @@ class Field(str, Enum):
     VEHICLES = "vehicles"
     ORDERS = "orders"
     UNASSIGNED_ORDERS = "unassigned_orders"
+    LAST_ACTION = "last_action"
     # order and vehicle views
     ID = "id"
     NODE = "node"
