@@ -148,13 +148,15 @@ installs and runs from the Prime Intellect hub and trains under prime-rl with no
 core library stays dependency-light; the adapter lives behind the `hub` extra.
 
 ```bash
-pip install -e ".[hub]"
-prime eval run optimbench -m openai/gpt-5-nano   # from environments/optimbench
+prime env install optimbench-dispatch
+prime eval run optimbench-dispatch -m openai/gpt-5-nano
 ```
 
 The deterministic verifier becomes the reward (integrity gate times weighted task and
 robustness), the three scores are logged as metrics, and each scenario seed is one dataset
-row. See `environments/optimbench/` for the hub package and `optimbench/hub/` for the adapter.
+row. See `environments/optimbench_dispatch/` for the hub package and `optimbench/hub/` for the
+adapter. The hub package targets `verifiers>=0.2.1` (Python 3.11+); the core library and the
+`hub` extra stay compatible with Python 3.10.
 
 ## Roadmap
 

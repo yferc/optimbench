@@ -1,0 +1,24 @@
+[project]
+name = "optimbench-dispatch"
+description = "Verifiable dynamic vehicle dispatch (CVRP with time windows and mid-episode disruptions), scored by a deterministic reward: task quality, disruption robustness, and solution integrity."
+tags = ["multi-turn", "tool-use", "verifiable", "optimization", "routing", "dispatch", "train", "eval"]
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "verifiers>=0.2.1",
+    "optimbench @ git+https://github.com/yferc/optimbench.git",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+include = ["optimbench_dispatch.py", "pyproject.toml", "README.md"]
+
+[tool.hatch.build.targets.wheel]
+py-modules = ["optimbench_dispatch"]
+
+[tool.verifiers.eval]
+num_examples = 20
+rollouts_per_example = 3

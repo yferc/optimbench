@@ -27,9 +27,10 @@ is versioned separately by `BENCHMARK_VERSION` (see `optimbench/domain/version.p
 - `scripts/export_trajectories.py`: export expert dispatch trajectories (greedy by default) as
   JSONL (prompt, completion) pairs from successful episodes, for supervised warm-start before RL.
 - A Prime Intellect hub / verifiers adapter (`optimbench/hub/`, the `hub` extra, and the
-  `environments/optimbench/` package) exposing OptimBench behind `load_environment()` so it
-  runs under `prime eval run` and prime-rl. The deterministic verifier maps to a verifiers
-  Rubric reward, with the three scores logged as zero-weight metrics.
+  `environments/optimbench_dispatch/` package) exposing OptimBench behind `load_environment()`
+  so it runs under `prime eval run` and prime-rl. The deterministic verifier maps to a verifiers
+  Rubric reward, with the three scores logged as zero-weight metrics. Verified against
+  verifiers 0.1.14 and 0.2.1; the hub package pins verifiers>=0.2.1 (Python 3.11+).
 - `combined_reward`: one scalar RL signal in [0, 1] with integrity as a hard multiplicative gate.
 - A reward-integrity audit suite (`tests/test_reward_integrity.py`) proving the gate and flags
   fire on adversarial trajectories and that shortcuts score zero.
