@@ -2,11 +2,13 @@
 name = "optimbench-dispatch"
 description = "Verifiable dynamic vehicle dispatch (CVRP with time windows and mid-episode disruptions), scored by a deterministic reward: task quality, disruption robustness, and solution integrity."
 tags = ["multi-turn", "tool-use", "verifiable", "optimization", "routing", "dispatch", "train", "eval"]
-version = "0.1.0"
+version = "0.1.1"
 requires-python = ">=3.11"
+# the optimbench dependency is pinned to an exact commit: this environment reports a versioned
+# benchmark score, so an install must not silently pick up a different scoring revision
 dependencies = [
     "verifiers>=0.2.1",
-    "optimbench @ git+https://github.com/yferc/optimbench.git",
+    "optimbench @ git+https://github.com/yferc/optimbench.git@baef53b8a99e251009515d65515e521119a6248c",
 ]
 
 [build-system]
