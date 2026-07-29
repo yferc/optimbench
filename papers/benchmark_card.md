@@ -106,12 +106,20 @@ numpy and torch versions from `pyproject.toml` when reporting.
   rate with accepted no-ops. It cannot inflate a score (integrity also requires
   committing and feasibly resolving every wave), so it is a transparency indicator,
   not a gate.
-- Headroom at the top of `medium` is now small: a frontier model (claude-opus-5) scores 0.917
-  zero-shot on the combined reward there, above both the greedy heuristic (0.762) and the trained
-  policy (0.870). Medium still separates mid-tier and small models across the full range, but for
-  frontier models the discriminating tier is `hard`, and calibrating the tiers by measured pass
-  rate is the planned fix. Reported LLM numbers are a three-seed pilot at provider-default
-  sampling, not the 20x3 reproducible protocol, so treat close rankings as unresolved.
+- **No current tier challenges a frontier model.** claude-opus-5, zero-shot, scores 0.917 on
+  `medium` (seeds 0-2) and 0.930 on `hard` (seed 0), in both cases above the greedy heuristic
+  (0.762 medium, 0.699 hard) and the trained policy (0.870 medium, 0.766 hard). Hard is *not* the
+  frontier-discriminating tier: opus scored marginally higher there than on medium, with robustness
+  and integrity at 1.0 and no truncation, implying a task score near 0.90 against the reference.
+  Since the reference itself sits about 19% above the OR-Tools optimum on hard, a frontier model is
+  now close to the ceiling this benchmark can express, and `task` saturates rather than separating.
+  The benchmark still separates mid-tier, small and dishonest agents across the full range
+  (0.000 to 0.930 on one reward), which is what it is currently good for. Raising the ceiling needs
+  harder instance composition (more vehicles and orders, binding time windows, more disruption
+  waves) and pass-rate-calibrated tiers, not a re-weighting of the existing scores.
+- Reported LLM numbers are a small pilot at provider-default sampling (three seeds on medium, one
+  on hard), not the 20x3 reproducible protocol, so treat close rankings as unresolved. The frontier
+  result above is one seed on hard and should be re-measured before being leaned on.
 - Single problem family (vehicle dispatch); scheduling and packing members are planned.
 
 ## Versioning and maintenance

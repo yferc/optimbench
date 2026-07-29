@@ -64,8 +64,15 @@ clears both the hand-written heuristic and the trained policy, zero-shot. Mid-ti
 or just above greedy. Weaker models collapse to zero, and they do not collapse on arithmetic, they
 collapse on recovery: they get the assign, reroute, dispatch shape right, then leave an order
 unassigned or a reloaded vehicle's route stale after the breakdown and dispatch anyway. Holding
-feasibility *through a disruption* is the axis this benchmark is built to separate, and it still
-separates sharply at the low and middle of the range even though the top now clears it.
+feasibility *through a disruption* is the axis this benchmark separates on, and it separates
+sharply at the low and middle of the range.
+
+It no longer separates at the top, and `hard` does not fix that: claude-opus-5 scores 0.930 on
+`hard` (seed 0) against greedy's 0.699 and the trained policy's 0.766, marginally *above* its own
+medium score, with robustness and integrity at 1.0. A frontier model is therefore near the ceiling
+this version can express, so raising it needs harder instance composition and pass-rate-calibrated
+tiers rather than new weights. That limitation is stated in
+[`papers/benchmark_card.md`](papers/benchmark_card.md) rather than left for a reader to trip over.
 
 Caveats, so these numbers are not read as more than they are: three seeds is a pilot, not a stable
 estimate (note gpt-4.1-mini averages 0.273 but reaches 0.818 on its best seed), LLM rows use
