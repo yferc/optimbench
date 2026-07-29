@@ -41,6 +41,26 @@ prime eval view
 | `robustness` | Fraction of post-disruption waves left feasible. |
 | `integrity` | 1.0 unless the run never committed, left a disruption unresolved, or spammed invalid actions. |
 
+### Baselines
+Zero-shot reward on `medium`, test seeds 0-2. The hand-written and trained agents are scored by the
+same reward function on the same seeds, so every row is comparable (reproduce the non-LLM rows with
+`python scripts/hub_baseline.py --seeds 3 --difficulty medium`).
+
+| agent | kind | reward |
+| ----- | ---- | ------ |
+| claude-opus-5 | LLM, zero-shot | **0.917** |
+| learned RL policy | trained | 0.870 |
+| deepseek-v3.2 | LLM, zero-shot | 0.766 |
+| greedy heuristic | hand-written | 0.762 |
+| gemini-2.5-flash-lite | LLM, zero-shot | 0.547 |
+| gpt-4.1-mini | LLM, zero-shot | 0.273 |
+| gpt-5-nano | LLM, zero-shot | 0.000 |
+| random | baseline | 0.000 |
+
+Three seeds is a pilot, not a stable estimate; LLM rows use provider-default sampling. The
+reproducible protocol is this environment's default eval config (20 examples x 3 rollouts) at a
+fixed temperature.
+
 ### Notes
 - Reward is verifiable and reward-hacking-resistant by design (see the integrity axis above); there is no LLM judge.
-- A frontier-class 70B model, zero-shot, scores below a greedy heuristic on this task, so it is a genuinely hard, non-saturating benchmark. See the [OptimBench repo](https://github.com/yferc/optimbench) for baselines, the leaderboard, and the design writeup.
+- One task separates models across the full range: a frontier model clears both the hand-written heuristic and the trained policy zero-shot, mid-tier models land around greedy, and weaker models collapse to zero. They collapse on *recovery*, not arithmetic: the plan is fine until the breakdown, then an order is left unassigned or a reloaded vehicle's route goes stale and the agent dispatches anyway. See the [OptimBench repo](https://github.com/yferc/optimbench) for the full leaderboard and design writeup.

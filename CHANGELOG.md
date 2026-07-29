@@ -16,6 +16,19 @@ is versioned separately by `BENCHMARK_VERSION` (see `optimbench/domain/version.p
   to 1.1, so v1.0 and v1.1 numbers are not comparable.
 
 ### Added
+- `scripts/hub_baseline.py`: score greedy / learned / random on the *hub* reward (integrity gate
+  times weighted task and robustness) over the same TEST_SEEDS and difficulty a `prime eval run`
+  uses. The repo leaderboard reports task score per difficulty, which is a different scale, so
+  comparing a hub LLM number against it was an apples-to-oranges error waiting to happen. Now
+  every published row sits on one metric.
+- A measured zero-shot LLM table in the README and the hub card, on the hub reward at `medium`:
+  claude-opus-5 0.917, learned 0.870, deepseek-v3.2 0.766, greedy 0.762, gemini-2.5-flash-lite
+  0.547, gpt-4.1-mini 0.273, gpt-5-nano 0.000, random 0.000. A frontier model now clears both the
+  heuristic and the trained policy zero-shot, so the earlier claim that LLMs do not clear this bar
+  is retired; the separation at the middle and bottom of the range, and the recovery-after-disruption
+  failure mode, are what the benchmark actually demonstrates. Sample size (3 seeds) and sampling
+  settings are stated inline so the pilot is not mistaken for the 20x3 reproducible protocol, and
+  pre-feedback LLM figures are explicitly marked as not comparable.
 - Offline optimality-gap analysis (`optimbench/analysis/`, `scripts/optimality_report.py`, the
   `solver` extra): an OR-Tools CVRP optimum used only to report how tight the heuristic reference
   (the task-score denominator) is. Measured gap: the reference sits about 14% above optimal on

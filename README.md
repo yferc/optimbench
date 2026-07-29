@@ -43,17 +43,41 @@ The point is that this table is produced by code, not judgement: the same determ
 
 ### LLM agents (zero-shot)
 
-The tool-using agent runs on any OpenAI-compatible endpoint (Groq, Gemini, Ollama, x.ai, and so on) via three env vars (see `scripts/run_llm.py`). Zero-shot results on easy, task score (higher is better):
+Run through the Prime Intellect hub adapter, so the number is this environment's single scalar
+reward, `integrity * (0.7 * task + 0.3 * robustness)`, on `medium` over test seeds 0-2. The
+programmatic agents are scored by the same function on the same seeds, so every row below is
+directly comparable (reproduce with `scripts/hub_baseline.py`).
 
-| model                          | feasibility | task    |
-|--------------------------------|-------------|---------|
-| qwen2.5-7b (local, Ollama)     | 0%          | 0.00    |
-| llama-3.1-8b-instant (Groq)    | 33%         | 0.26    |
-| llama-3.3-70b-versatile (Groq) | feasible\*  | ~0.67\* |
+| agent                 | kind           | reward    | per-seed spread |
+|-----------------------|----------------|-----------|-----------------|
+| claude-opus-5         | LLM, zero-shot | **0.917** | 0.884 - 0.963   |
+| learned RL policy     | trained        | 0.870     | 0.809 - 0.964   |
+| deepseek-v3.2         | LLM, zero-shot | 0.766     | up to 0.804     |
+| greedy heuristic      | hand-written   | 0.762     | 0.690 - 0.815   |
+| gemini-2.5-flash-lite | LLM, zero-shot | 0.547     | 0.000 - 0.877   |
+| gpt-4.1-mini          | LLM, zero-shot | 0.273     | 0.000 - 0.818   |
+| gpt-5-nano            | LLM, zero-shot | 0.000     | 0.000           |
+| random                | baseline       | 0.000     | 0.000           |
 
-The pattern is the point. A frontier-class 70B model, zero-shot, lands a feasible plan but at roughly 0.67 task, **below the greedy heuristic's 0.83 and well below the trained policy's 0.93**. Smaller models degrade fast: the 8B is feasible only one seed in three, and the 7B never holds feasibility through the breakdown at all. It follows the tool protocol and gets the assign, reroute, dispatch shape right, then leaves an order unassigned or a reloaded vehicle's route stale and dispatches anyway. The instances are solvable (greedy is 100% feasible on the same seeds); holding feasibility *through a disruption* is the gap this benchmark is built to surface, and current LLMs do not clear it zero-shot.
+The spread is the point: one benchmark separates models across the full range. A frontier model
+clears both the hand-written heuristic and the trained policy, zero-shot. Mid-tier models land at
+or just above greedy. Weaker models collapse to zero, and they do not collapse on arithmetic, they
+collapse on recovery: they get the assign, reroute, dispatch shape right, then leave an order
+unassigned or a reloaded vehicle's route stale after the breakdown and dispatch anyway. Holding
+feasibility *through a disruption* is the axis this benchmark is built to separate, and it still
+separates sharply at the low and middle of the range even though the top now clears it.
 
-\*llama-3.3-70b is a single seed, taken before the Groq free-tier daily quota was exhausted; a full multi-seed run is pending a quota reset or a second key. All LLM numbers are zero-shot through the tool API, whereas the learned 0.93 is a policy trained on the task.
+Caveats, so these numbers are not read as more than they are: three seeds is a pilot, not a stable
+estimate (note gpt-4.1-mini averages 0.273 but reaches 0.818 on its best seed), LLM rows use
+provider-default sampling while the programmatic agents are deterministic, and seeds 0-2 are not
+representative of the 50-seed leaderboard above. The reproducible protocol is the environment's
+own default eval config, 20 examples times 3 rollouts at a fixed temperature.
+
+Earlier LLM figures in this README (a 70B at ~0.67 task on easy, and several zeros) were measured
+before the environment reported rejected tool calls back to the agent, and are **not** comparable
+to the table above: a model could not see *why* an action failed, so it could loop on one invalid
+call until the turn cap. Fixing that moved gemini-2.5-flash-lite from 0.000 to 0.547 on identical
+settings. Numbers measured before 2026-07-29 understate LLM ability for that reason.
 
 ## How it is built
 
