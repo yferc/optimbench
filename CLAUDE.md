@@ -99,6 +99,43 @@ This is the most important section. Follow every rule.
 - Commit messages: a short imperative subject, then a body explaining the why. No em-dashes.
 - Human-gated: do not mutate datasets, trained checkpoints under `models/`, or experiment logs without explicit sign-off. Regenerate media and models with the scripts, do not hand-edit them.
 
+## Publishing and measurement (read before touching the hub or quoting a number)
+
+The library lives on GitHub and the environment package is published to the Prime Intellect hub as
+`yferc/optimbench-dispatch` (public). They are not alternatives: the hub distributes the packaged
+env, GitHub holds the library, tests, baselines and papers.
+
+- **Pushing to GitHub needs an account switch.** The default `gh` account (`y-ferchichi`) has no push
+  rights on this repo and gets a 403. Push as the owner, then switch back:
+  `gh auth switch --user yferc` then `git push origin main` then `gh auth switch --user y-ferchichi`.
+- **The hub env pins the library to an exact commit** in
+  `environments/optimbench_dispatch/pyproject.toml` (`optimbench @ git+...@<sha>`). This is deliberate:
+  the env reports a versioned benchmark score, so an install must not silently resolve a different
+  scoring revision. An unpinned URL previously cached one revision and served stale scoring code.
+- **Release order:** commit the library, push it, then update the pin to that commit, bump the env
+  `version`, and `prime env push`. `prime env push` hashes only `optimbench_dispatch.py`,
+  `pyproject.toml` and `README.md`, so a library-only change fails with "content hash already exists"
+  until the pin moves. The README is packaged into the wheel, so a card edit needs a patch bump too.
+- **`--visibility PUBLIC` does not apply to an existing env.** Change visibility in the dashboard.
+
+Two measurement traps, both of which have already produced wrong numbers once:
+
+- **The hub reward is not the leaderboard score.** `prime eval run` reports
+  `integrity * (0.7 * task + 0.3 * robustness)` on `TEST_SEEDS` at one difficulty (default `medium`);
+  `papers/leaderboard.md` reports `task` per difficulty over 50 seeds. Never compare them. Use
+  `scripts/hub_baseline.py --seeds N --difficulty D` to score greedy, learned and random on the hub
+  reward and seeds, which is what every published LLM row is compared against.
+- **A 0.000 with zero turns is an error, not a score.** Several early hub evals read as clean zeros
+  but had never played a turn (a provider returning empty content, an incompatible `service_tier`, a
+  refused local connection). Check `num_turns` and the error chain before recording any zero. Evals
+  measured before rejection feedback existed (before 2026-07-29 13:42 UTC) ran different scoring code
+  and are not comparable to later ones.
+
+Evaluation costs real money and is easy to underestimate. Multi-turn resends the whole context each
+turn, so one rollout is roughly 0.5M input tokens here: about $0.05 for a cheap model and $3.50 to
+$7.00 for claude-opus-5. A "Full Run" over all 50 seeds with a frontier model is in the hundreds of
+dollars. Smoke test 1x1 first, and check `prime wallet` before a sweep.
+
 ## Notes
 
 - `models/` holds trained policies; `docs/media/` holds rendered episodes. Caches and build artifacts are git-ignored (`__pycache__`, `.pytest_cache`, `.ruff_cache`, `*.egg-info`, `build/`, `dist/`).
