@@ -90,7 +90,7 @@ This is the most important section. Follow every rule.
 `DispatchEnvironment` is the gym-style loop. `reset(scenario)` returns the first observation; `step(action, args)` takes an `ActionType` and an args dict keyed by the `Arg` enum, and returns `{result, accepted, note, observation}`.
 
 - Observation (a dict): `wave`, `waves_total`, `final_wave`, `feasible`, `depot` coordinates, `vehicles` (id, capacity, in_service, load, assigned, route, load centroid), and `unassigned_orders` (id, node, coord, demand, window, priority).
-- Action space: the ten `ActionType` tools in `simulation/tools.py`, each with its `Arg` keys. Read tools return info; mutation tools edit the plan; `dispatch` commits the wave and applies the next disruption.
+- Action space: the ten `ActionType` tools in `domain/tools.py` (`TOOLSET`), each with its `Arg` keys. Read tools return info; mutation tools edit the plan; `dispatch` commits the wave and applies the next disruption.
 - Reward is terminal, from the verifier: `task`, `robustness`, `integrity`. See `papers/benchmark_card.md`.
 
 ## Working agreements
