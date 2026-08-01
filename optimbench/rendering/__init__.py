@@ -1,3 +1,3 @@
-from optimbench.rendering.renderer import EpisodeRenderer
+from optimbench.rendering.renderer import EpisodeRenderer, FrameContext
 
-__all__ = ["EpisodeRenderer"]
+__all__ = ["EpisodeRenderer", "FrameContext"]

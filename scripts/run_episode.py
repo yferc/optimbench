@@ -17,10 +17,14 @@ from pathlib import Path
 import imageio.v2 as imageio
 
 from optimbench.agents import AgentType, GreedyDispatcher, RandomDispatcher, openai_compatible_agent
-from optimbench.domain import Difficulty
+from optimbench.domain import Difficulty, DisruptionType, Field, Note, Scenario
 from optimbench.generation import DispatchScenarioGenerator
-from optimbench.rendering import EpisodeRenderer
+from optimbench.rendering import EpisodeRenderer, FrameContext
 from optimbench.simulation import DispatchEnvironment
+
+_BREAKDOWN = (255, 92, 140)
+_DISPATCHED = (75, 212, 138)
+_HOLD_EVENT = 5  # extra frames on a commit or disruption so the viewer can read what happened
 
 ROOT = Path(__file__).resolve().parent.parent
 log = logging.getLogger("optimbench")
@@ -47,6 +51,27 @@ def make_agent(agent_type: AgentType, seed: int):
     return builders[agent_type]()
 
 
+def _wave_advanced(outcome: dict) -> bool:
+    result = outcome[Field.RESULT]
+    return Field.WAVE_ADVANCED in result and result[Field.WAVE_ADVANCED]
+
+
+_DISRUPTION_BANNER = {
+    DisruptionType.BREAKDOWN: "BREAKDOWN: BUSIEST TRUCK DOWN",
+    DisruptionType.RUSH_ORDER: "RUSH ORDER ARRIVED",
+    DisruptionType.CANCELLATION: "ORDER CANCELLED",
+}
+
+
+def _event_banner(scenario: Scenario, outcome: dict, wave_index: int) -> tuple[str, tuple[int, int, int]]:
+    """The headline for this frame: which disruption just landed, or the final commit."""
+    if outcome[Field.NOTE] is Note.DISRUPTION_APPLIED:
+        return _DISRUPTION_BANNER[scenario.disruptions[wave_index].type], _BREAKDOWN
+    if outcome[Field.NOTE] is Note.FINAL_COMMIT:
+        return "FINAL WAVE DISPATCHED", _DISPATCHED
+    return "", _BREAKDOWN
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser()
@@ -67,17 +92,27 @@ def main() -> None:
     env.reset(scenario)
     agent.reset()
     frames = [renderer.frame(env.state, waves)]
+    wave_index = 0
     while not env.done:
         action, tool_args = agent.act(env.observation())
-        env.step(action, tool_args)
-        frames.append(renderer.frame(env.state, waves))
+        outcome = env.step(action, tool_args)
+        banner, color = _event_banner(scenario, outcome, wave_index)
+        if _wave_advanced(outcome):
+            wave_index += 1
+        context = FrameContext(action=action, args=tool_args, accepted=outcome[Field.ACCEPTED],
+                               note=outcome[Field.NOTE], banner=banner, banner_color=color)
+        frame = renderer.frame(env.state, waves, context)
+        frames.append(frame)
+        if banner:
+            frames += [frame] * _HOLD_EVENT
     frames += [frames[-1]] * args.fps
     renderer.close()
 
     out = ROOT / args.out_dir / agent_type.value
     out.parent.mkdir(parents=True, exist_ok=True)
-    half_res = [frame[::2, ::2] for frame in frames]  # smaller GIF than the full-res MP4
-    imageio.mimsave(f"{out}.gif", half_res, fps=args.fps, loop=0)
+    # the GIF keeps full resolution: halving it turned every label into unreadable mush, and the
+    # action bar is the point of the animation
+    imageio.mimsave(f"{out}.gif", frames, fps=args.fps, loop=0)
     imageio.mimsave(f"{out}.mp4", frames, fps=args.fps, quality=8)
     log.info("%s: %s.gif / .mp4 (%d frames)", agent_type.value, out, len(frames))
 
